@@ -87,6 +87,12 @@ static const bfd_arch_info_type arches[] = {
 	mach:      0 /* unknown */,
 	},
 	{
+	arch_name: "elf32-arm",
+	arch:      bfd_arch_arm,
+	elf_id:    EM_ARM,
+	mach:      0 /* unknown */,
+	},
+	{
 	arch_name: "elf32-i386",
 	arch:      bfd_arch_i386,
 	elf_id:    EM_386,
@@ -112,6 +118,11 @@ static const bfd_arch_info_type myarch = {
 	arch:      bfd_arch_powerpc,
 	mach:      bfd_mach_ppc,
 	elf_id:    EM_PPC,
+#elif defined(__ARM__)
+	arch_name: "elf32-arm",
+	arch:      bfd_arch_arm,
+	mach:      bfd_mach_arm,
+	elf_id:    EM_ARM,
 #elif defined(__i386__)
 	arch_name: "elf32-i386",
 	arch:      bfd_arch_i386,
