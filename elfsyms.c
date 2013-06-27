@@ -1,4 +1,4 @@
-/* $Id: elfsyms.c,v 1.38 2008/10/04 21:55:13 strauman Exp $ */
+/* $Id: elfsyms.c,v 1.44 2013/01/17 22:33:38 strauman Exp $ */
 
 /* routines to extract information from an ELF symbol table */
 
@@ -68,6 +68,7 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
 
 #include <cexp_regex.h>
 
@@ -78,9 +79,18 @@
 #define _INSIDE_CEXP_
 #include "cexpHelp.h"
 
+#include "elfdlmap.h"
+
 #ifdef __rtems__
 #include <sys/socket.h>
 #endif
+
+/*#define  USE_ELF_MEMORY*/
+
+typedef struct FilterArgsRec_ {
+	const char *strtab;
+	uintptr_t   offset;
+} FilterArgsRec, *FilterArgs;
 
 /* filter the symbol table entries we're interested in */
 
@@ -94,10 +104,11 @@
 static const char *
 filter32(void *ext_sym, void *closure)
 {
-Elf32_Sym	*sp=ext_sym;
-char		*strtab=closure;
+Elf32_Sym   *sp     = ext_sym;
+FilterArgs  args    = closure;
+const char	*strtab = args->strtab;
 
-	if ( STB_LOCAL == ELF32_ST_BIND(sp->st_info) )
+	if ( STB_LOCAL == ELF32_ST_BIND(sp->st_info) || SHN_UNDEF == sp->st_shndx )
 		return 0;
 
 	switch (ELF32_ST_TYPE(sp->st_info)) {
@@ -116,9 +127,10 @@ char		*strtab=closure;
 static void
 assign32(void *symp, CexpSym cesp, void *closure)
 {
-Elf32_Sym	*sp=symp;
+Elf32_Sym	*sp     = symp;
+int 		s       = sp->st_size;
+FilterArgs  args    = closure;
 CexpType	t;
-int 		s=sp->st_size;
 
 	cesp->size = s;
 
@@ -157,16 +169,17 @@ int 		s=sp->st_size;
 			break;
 	}
 
-	cesp->value.ptv  = (CexpVal)(uintptr_t)sp->st_value;
+	cesp->value.ptv  = (CexpVal)((uintptr_t)sp->st_value + args->offset);
 }
 
 static const char *
 filter64(void *ext_sym, void *closure)
 {
-Elf64_Sym	*sp=ext_sym;
-char		*strtab=closure;
+Elf64_Sym	*sp     = ext_sym;
+FilterArgs  args    = closure;
+const char	*strtab = args->strtab;
 
-	if ( STB_LOCAL == ELF64_ST_BIND(sp->st_info) )
+	if ( STB_LOCAL == ELF64_ST_BIND(sp->st_info) || SHN_UNDEF == sp->st_shndx )
 		return 0;
 
 	switch (ELF64_ST_TYPE(sp->st_info)) {
@@ -185,9 +198,10 @@ char		*strtab=closure;
 static void
 assign64(void *symp, CexpSym cesp, void *closure)
 {
-Elf64_Sym	*sp=symp;
+Elf64_Sym	*sp     = symp;
+int 		s       = sp->st_size;
+FilterArgs  args    = closure;
 CexpType	t;
-int 		s=sp->st_size;
 
 	cesp->size = s;
 
@@ -226,10 +240,20 @@ int 		s=sp->st_size;
 			break;
 	}
 
-	cesp->value.ptv  = (CexpVal)(uintptr_t)sp->st_value;
+	cesp->value.ptv  = (CexpVal)((uintptr_t)sp->st_value + args->offset);
 }
 
-#define  USE_ELF_MEMORY
+static unsigned long symcnt(void *symtab, size_t symsz, long nsyms, CexpSymFilterProc filt, void *closure)
+{
+unsigned long rval    = 0;
+
+	while ( nsyms-- ) {
+		if ( filt(symtab, closure) )
+			rval++;
+		symtab += symsz;
+	}
+	return rval;
+}
 
 /* read an ELF file, extract the relevant information and
  * build our internal version of the symbol table.
@@ -237,18 +261,26 @@ int 		s=sp->st_size;
  * routine.
  */
 static CexpSymTbl
-cexpSlurpElf(char *filename)
+cexpSlurpElf(const char *filename)
 {
-Elf_Stream	elf=0;
-Elf_Shdr	*shdr=0;
-Elf_Ehdr    ehdr;
-Pmelf_Shtab  shtab  = 0;
-Pmelf_Symtab symtab = 0;
-CexpSymTbl	rval=0,csymt=0;
-CexpSym		sane;
-#ifdef USE_ELF_MEMORY
-char		*buf=0,*ptr=0;
-long		size=0,avail=0,got;
+Elf_Stream	  elf=0;
+Elf_Ehdr      ehdr;
+Pmelf_Shtab   shtab  = 0;
+Pmelf_Symtab  symtab = 0;
+CexpSymTbl	  rval=0,csymt=0;
+CexpSym		  sane;
+#if defined(USE_ELF_MEMORY) || defined(HAVE_RCMD)
+char		  *buf=0,*ptr=0;
+long		  got;
+#endif
+#if defined(USE_ELF_MEMORY)
+long		  size=0,avail=0;
+#endif
+unsigned long nsyms;
+CexpLinkMap   lmaps = 0, map;
+FilterArgsRec args;
+
+#ifdef HAVE_RCMD
 #ifdef		__rtems__
 extern		struct in_addr rtems_bsdnet_bootp_server_address;
 char		HOST[30];
@@ -256,12 +288,11 @@ char		HOST[30];
 #define		HOST "localhost"
 #endif
 #endif
-int			fd=-1;
-unsigned    symsz;
+
+FILE        *f = 0;
 
 	pmelf_set_errstrm(stderr);
 
-#ifdef USE_ELF_MEMORY
 #ifdef HAVE_RCMD
 	if ('~'==filename[0]) {
 		char *cmd=malloc(strlen(filename)+40);
@@ -279,14 +310,23 @@ unsigned    symsz;
 		inet_ntop(AF_INET, &rtems_bsdnet_bootp_server_address, HOST, sizeof(HOST));
 #endif
 		/* try to load via rsh */
-		if (!(buf=rshLoad(HOST,cmd+1,ptr)))
+		if (!(buf=rshLoad(HOST,cmd+1,ptr,&got)))
 			goto cleanup;
 	}
 	else
 #endif
 	{
-		if ((fd=open(filename,O_RDONLY,0))<0)
+		f = cexpSearchFile(getenv("PATH"), filename, 0, 0);
+
+		if ( ! f ) {
 			goto cleanup;
+		}
+
+#ifdef USE_ELF_MEMORY
+		if ( setvbuf(f, 0, _IONBF, 0) ) {
+			fprintf(stderr,"cexpSlurpElf: unable to disable buffering: %s\n", strerror(errno));
+			goto cleanup;
+		}
 
 		do {
 			if (avail<LOAD_CHUNK) {
@@ -295,20 +335,38 @@ unsigned    symsz;
 					goto cleanup;
 				ptr=buf+(size-avail);
 			}
-			got=read(fd,ptr,avail);
-			if (got<0)
+			got=fread(ptr,1,avail,f);
+			if ( ferror( f ) )
 				goto cleanup;
 			avail-=got;
 			ptr+=got;
-		} while (got);
+		} while (!feof(f) && got > 0);
 			got = ptr-buf;
-	}
-	if (!(elf = pmelf_memstrm(buf,got)))
-		goto cleanup;
-#else
-	if ( ! (elf =  pmelf_newstrm(filename,0)) )
-		goto cleanup;
 #endif
+	}
+
+#if defined(USE_ELF_MEMORY) || defined(HAVE_RCMD)
+	if ( buf ) {
+		if (!(elf = pmelf_memstrm(buf,got)))
+			goto cleanup;
+	} else 
+	/* this deals with the case if HAVE_RCMD but not USE_ELF_MEMORY when we use a non-rsh file */
+#endif
+	{
+		elf = pmelf_mapstrm(filename,f);
+		if ( !elf ) {
+			if ( ENOTSUP != errno ) {
+				fprintf(stderr,"Error: unable to mmap symbol file: %s\n", strerror(errno));
+				goto cleanup;
+			}
+			if ( ! (elf =  pmelf_newstrm(filename,f)) ) {
+				fprintf(stderr,"Error: unable to open symbol file: %s\n", strerror(errno));
+				goto cleanup;
+			}
+		}
+		/* FILE is now 'owned' by pmelf */
+		f = 0;
+	}
 
 	/* we need the section header string table */
 	if (      pmelf_getehdr(elf, &ehdr)
@@ -317,24 +375,88 @@ unsigned    symsz;
 		goto cleanup;
 	
 	/* convert the symbol table */
-	
+	lmaps = cexpLinkMapBuild( 0, 0 );
+
+	args.strtab = symtab->strtab;
+	args.offset = 0;
 
 	if ( ELFCLASS64 == ehdr.e_ident[EI_CLASS] ) {
-		csymt=cexpCreateSymTbl(
+		nsyms = symcnt(
 				(void*)symtab->syms.p_t64,
 				sizeof(Elf64_Sym), symtab->nsyms,
-				filter64,assign64,
-				(void*)symtab->strtab);
+				filter64,
+				&args);
 	} else {
-		csymt=cexpCreateSymTbl(
+		nsyms = symcnt(
 				(void*)symtab->syms.p_t32,
 				sizeof(Elf32_Sym), symtab->nsyms,
-				filter32,assign32,
-				(void*)symtab->strtab);
+				filter32,
+				&args);
 	}
+
+	for ( map = lmaps; map; map = map->next ) {
+		nsyms += map->nsyms - map->firstsym;
+	}
+
+	csymt = cexpNewSymTbl( nsyms );
+
 	if ( ! csymt )
 		goto cleanup;
 
+	if ( ELFCLASS64 == ehdr.e_ident[EI_CLASS] ) {
+
+		args.strtab = symtab->strtab;
+		args.offset = 0;
+
+		csymt = cexpAddSymTbl(
+				csymt,
+				(void*)symtab->syms.p_t64,
+				sizeof(Elf64_Sym), symtab->nsyms,
+				filter64,assign64,
+				&args,
+				0);
+		for ( map = lmaps; map; map = map->next ) {
+			args.strtab = map->strtab;
+			args.offset = map->offset;
+			cexpAddSymTbl(
+				csymt,
+				(void*)map->elfsyms + sizeof(Elf64_Sym) * map->firstsym,
+				sizeof(Elf64_Sym), map->nsyms - map->firstsym,
+				filter64, assign64,
+				&args,
+				(map->flags & CEXP_LINK_MAP_STATIC_STRINGS) ? CEXP_SYMTBL_FLAG_NO_STRCPY : 0
+			);
+		}
+	} else {
+
+		args.strtab = symtab->strtab;
+		args.offset = 0;
+
+		csymt = cexpAddSymTbl(
+				csymt,
+				(void*)symtab->syms.p_t32,
+				sizeof(Elf32_Sym), symtab->nsyms,
+				filter32,assign32,
+				&args,
+				0);
+		for ( map = lmaps; map; map = map->next ) {
+			args.strtab = map->strtab;
+			args.offset = map->offset;
+			cexpAddSymTbl(
+				csymt,
+				(void*)map->elfsyms + sizeof(Elf32_Sym) * map->firstsym,
+				sizeof(Elf32_Sym), map->nsyms - map->firstsym,
+				filter32, assign32,
+				&args,
+				(map->flags & CEXP_LINK_MAP_STATIC_STRINGS) ? CEXP_SYMTBL_FLAG_NO_STRCPY : 0
+			);
+		}
+	}
+
+	cexpSortSymTbl( csymt );
+
+	if ( cexpIndexSymTbl( csymt ) )
+		goto cleanup;
 
 #ifndef ELFSYMS_TEST_MAIN
 	/* do a couple of sanity checks */
@@ -355,22 +477,23 @@ unsigned    symsz;
 	csymt = 0;
 
 cleanup:
+	cexpLinkMapFree(lmaps);
 	pmelf_delsymtab(symtab);
 	pmelf_delshtab(shtab);
 	pmelf_delstrm(elf,0);
-#ifdef USE_ELF_MEMORY
+#if defined(USE_ELF_MEMORY) || defined(HAVE_RCMD)
 	if (buf)
 		free(buf);
 #endif
 	if (csymt)
 		cexpFreeSymTbl(&csymt);
-	if (fd>=0)
-		close(fd);
+	if (f)
+		fclose(f);
 	return rval;
 }
 
 int
-cexpLoadFile(char *filename, CexpModule new_module)
+cexpLoadFile(const char *filename, CexpModule new_module)
 {
 int			rval=-1;
 

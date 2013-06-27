@@ -1,4 +1,4 @@
-/* $Id: getehdr.c,v 1.6 2008/10/07 21:38:38 till Exp $ */
+/* $Id: getehdr.c,v 1.10 2012/11/01 18:56:14 strauman Exp $ */
 
 /* 
  * Authorship
@@ -71,8 +71,13 @@ getehdr32_top(Elf_Stream s, Elf32_Ehdr *pehdr)
 	}
 #endif
 
-	if ( pehdr->e_shentsize != sizeof( Elf32_Shdr ) ) {
+	if ( pehdr->e_shnum > 0 && pehdr->e_shentsize != sizeof( Elf32_Shdr ) ) {
 		PMELF_PRINTF(pmelf_err, PMELF_PRE"error: SH size mismatch %i"PRIu16"\n", pehdr->e_shentsize);
+		return -1;
+	}
+
+	if ( pehdr->e_phnum > 0 && pehdr->e_phentsize != sizeof( Elf32_Phdr ) ) {
+		PMELF_PRINTF(pmelf_err, PMELF_PRE"error: PH size mismatch %i"PRIu16"\n", pehdr->e_phentsize);
 		return -1;
 	}
 
@@ -111,10 +116,16 @@ getehdr64_top(Elf_Stream s, Elf64_Ehdr *pehdr)
 	}
 #endif
 
-	if ( pehdr->e_shentsize != sizeof( Elf64_Shdr ) ) {
+	if ( pehdr->e_shnum > 0 && pehdr->e_shentsize != sizeof( Elf64_Shdr ) ) {
 		PMELF_PRINTF(pmelf_err, PMELF_PRE"error: SH size mismatch %i"PRIu16"\n", pehdr->e_shentsize);
 		return -1;
 	}
+
+	if ( pehdr->e_phnum > 0 && pehdr->e_phentsize != sizeof( Elf64_Phdr ) ) {
+		PMELF_PRINTF(pmelf_err, PMELF_PRE"error: PH size mismatch %i"PRIu16"\n", pehdr->e_phentsize);
+		return -1;
+	}
+
 
 	if ( pehdr->e_shnum > 0 ) {
 		if ( pehdr->e_shstrndx == 0 || pehdr->e_shstrndx >= pehdr->e_shnum ) {
@@ -174,17 +185,20 @@ int     rval;
 			}
 
 			s->machine = pehdr->e64.e_machine;
+
+			break;
 #else
 			PMELF_PRINTF(pmelf_err, PMELF_PRE"error: cannot read 64-bit ELF file; pmelf was configured and built without 64-bit support!\n");
 			return -3;
 #endif
 		default:
 			s->clss = ELFCLASSNONE;
-			PMELF_PRINTF(pmelf_err, PMELF_PRE"error: not an 32/64-bit ELF file\n");
+			PMELF_PRINTF(pmelf_err, PMELF_PRE"error: not a 32/64-bit ELF file\n");
 			return -1;
 	}
 
 	switch ( s->machine ) {
+		case EM_SPARC:
 		case EM_386:
 		case EM_68K:
 		case EM_PPC:

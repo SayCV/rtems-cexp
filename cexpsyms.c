@@ -1,4 +1,4 @@
-/* $Id: cexpsyms.c,v 1.26 2009/03/09 18:30:53 till Exp $ */
+/* $Id: cexpsyms.c,v 1.34 2013/01/17 22:28:07 strauman Exp $ */
 
 /* generic symbol table handling */
 
@@ -107,7 +107,13 @@ _cexp_addrcomp(const void *a, const void *b)
 {
 	CexpSym *sa=(CexpSym*)a;
 	CexpSym *sb=(CexpSym*)b;
-	return (*sa)->value.ptv-(*sb)->value.ptv;
+	/* pointers may be larger than 'int' ! */
+	if ( (*sa)->value.ptv > (*sb)->value.ptv )
+		return 1;
+	else if ( (*sa)->value.ptv < (*sb)->value.ptv )
+		return -1;
+	else
+		return 0;
 }
 
 CexpSym
@@ -121,147 +127,6 @@ CexpSymRec key;
 				sizeof(*t->syms),
 				_cexp_namecomp);
 }
-
-#define USE_ELF_MEMORY
-
-#ifdef HAVE_RCMD
-#include <sys/time.h>
-#include <errno.h>
-#if !defined(HAVE_RTEMS_H) && defined(__rtems__)
-/* avoid pulling in networking headers under __rtems__
- * until BSP stuff is separated out from the core
- */
-#define	AF_INET	2
-extern char *inet_ntop();
-extern int	socket();
-extern int  select();
-#else
-#include <sys/socket.h>
-#include <arpa/inet.h>
-#endif
-
-#define RSH_PORT 514
-
-static char *
-handleInput(int fd, int errfd, unsigned long *psize)
-{
-long	n=0,size,avail;
-fd_set	r,w,e;
-char	errbuf[1000],*ptr,*buf;
-struct  timeval timeout;
-
-register long ntot=0,got,put,idx;
-
-	if (n<fd)		n=fd;
-	if (n<errfd)	n=errfd;
-
-	n++;
-
-	buf=ptr=0;
-	size=avail=0;
-
-	while (fd>=0 || errfd>=0) {
-		FD_ZERO(&r);
-		FD_ZERO(&w);
-		FD_ZERO(&e);
-
-		timeout.tv_sec=5;
-		timeout.tv_usec=0;
-		if (fd>=0) 		FD_SET(fd,&r);
-		if (errfd>=0)	FD_SET(errfd,&r);
-		if ((got=select(n,&r,&w,&e,&timeout))<=0) {
-				if (got) {
-					fprintf(stderr,"rsh select() error: %s.\n",
-							strerror(errno));
-				} else {
-					fprintf(stderr,"rsh timeout\n");
-				}
-				goto cleanup;
-		}
-		if (errfd>=0 && FD_ISSET(errfd,&r)) {
-				got=read(errfd,errbuf,sizeof(errbuf));
-				if (got<0) {
-					fprintf(stderr,"rsh error (reading stderr): %s.\n",
-							strerror(errno));
-					goto cleanup;
-				}
-				if (got) {
-					idx = 0;
-					do {
-						put = write(2,errbuf+idx,got);
-						if ( put <= 0 ) {
-							fprintf(stderr,"rsh error (writing stderr): %s.\n",
-									strerror(errno));
-							goto cleanup;
-						}
-						idx += put;
-						got -= put;
-					} while ( got > 0 );
-				} else {
-					errfd=-1; 
-				}
-		}
-		if (fd>=0 && FD_ISSET(fd,&r)) {
-				if (avail < LOAD_CHUNK) {
-					size+=LOAD_CHUNK; avail+=LOAD_CHUNK;
-					if (!(buf=realloc(buf,size))) {
-						fprintf(stderr,"out of memory\n");
-						goto cleanup;
-					}
-					ptr = buf + (size-avail);
-				}
-				got=read(fd,ptr,avail);
-				if (got<0) {
-					fprintf(stderr,"rsh error (reading stdout): %s.\n",
-							strerror(errno));
-					goto cleanup;
-				}
-				if (got) {
-					ptr+=got;
-					ntot+=got;
-					avail-=got;
-				} else {
-					fd=-1;
-				}
-		}
-	}
-	if (psize) *psize=ntot;
-	return buf;
-cleanup:
-	free(buf);
-	return 0;
-}
-
-char *
-rshLoad(char *host, char *user, char *cmd)
-{
-char	*chpt=host,*buf=0;
-int		fd,errfd;
-long	ntot;
-extern  int rcmd();
-
-	fd=rcmd(&chpt,RSH_PORT,user,user,cmd,&errfd);
-	if (fd<0) {
-		fprintf(stderr,"rcmd: got no remote stdout descriptor\n");
-		goto cleanup;
-	}
-	if (errfd<0) {
-		fprintf(stderr,"rcmd: got no remote stderr descriptor\n");
-		goto cleanup;
-	}
-
-	if (!(buf=handleInput(fd,errfd,&ntot))) {
-		goto cleanup; /* error message has already been printed */
-	}
-
-	fprintf(stderr,"0x%lx (%li) bytes read\n",ntot,ntot);
-
-cleanup:
-	if (fd>=0)		close(fd);
-	if (errfd>=0)	close(errfd);
-	return buf;
-}
-#endif
 
 /* a semi-public routine which takes a precompiled regexp.
  * The reason this is not public is that we try to keep
@@ -312,54 +177,157 @@ int			max=24;
 }
 
 CexpSymTbl
-cexpCreateSymTbl(void *syms, int symSize, int nsyms, CexpSymFilterProc filter, CexpSymAssignProc assign, void *closure)
+cexpNewSymTbl(unsigned n_entries)
+{
+CexpSymTbl rval;
+
+	if ( ! (rval = calloc(1, sizeof(*rval))) )
+		return 0;
+
+	if ( n_entries ) {
+		if ( ! (rval->syms = malloc(sizeof(rval->syms[0])*(n_entries + 1))) )
+			goto cleanup;
+	}
+
+	rval->size = n_entries;
+
+	return rval;
+	
+cleanup:
+	if ( rval ) {
+		free(rval->syms);
+	}
+	return 0;
+}
+
+void
+cexpSortSymTbl(CexpSymTbl stbl)
+{
+int fr,to;
+const char *old;
+
+	if ( 0 == stbl->nentries )
+		return;
+
+	qsort((void*)stbl->syms,
+		stbl->nentries,
+		sizeof(*stbl->syms),
+		_cexp_namecomp);
+
+	/* Sometimes the same symbol is present in an executable's symbol table AND 
+	 * dynamic symbol table. Eliminate redundant entries simply by wasting memory...
+	 */
+
+	/* Add a marker to the end of the table (using the extra element there)
+	 * to make sure the while loop breaks.
+	 */
+	old = stbl->syms[stbl->nentries].name;
+	/* Use an invalid symbol as a marker */
+	stbl->syms[stbl->nentries].name = "+%2W";
+
+	for ( fr=1, to=0; fr<stbl->nentries; fr++ ) {
+		while ( 0 == _cexp_namecomp( &stbl->syms[to], &stbl->syms[fr] ) ) {
+#ifdef DEBUG /* There seem to be redundant symbols (plt and executable); don't warn for now */
+			if ( _cexp_addrcomp( &stbl->syms[to], &stbl->syms[fr] ) ) {
+				fprintf(stderr,"WARNING: Eliminating redundant symbol '%s' but values differ (%p vs. %p [eliminated])\n",
+				               stbl->syms[to].name,
+				               stbl->syms[to].value.ptv,
+				               stbl->syms[fr].value.ptv);
+			}
+#endif
+			fr++;
+		}
+		stbl->syms[++to] = stbl->syms[fr];
+	}
+
+	stbl->syms[stbl->nentries].name = old;
+
+	stbl->nentries = to + 1;
+}
+
+
+CexpSymTbl
+cexpAddSymTbl(CexpSymTbl stbl, void *syms, int symSize, int nsyms, CexpSymFilterProc filter, CexpSymAssignProc assign, void *closure, unsigned flags)
 {
 char		*sp,*dst;
 const char	*symname;
 CexpSymTbl	rval;
 CexpSym		cesp;
 int			n,nDstSyms,nDstChars;
+CexpStrTbl  strtbl = 0;
 
-	if (!(rval=(CexpSymTbl)malloc(sizeof(*rval))))
+	if ( stbl ) {
+		rval = stbl;
+	} else {
+		if (! (rval=(CexpSymTbl)calloc(1, sizeof(*rval))))
 			return 0;
+	}
 
-	memset(rval,0,sizeof(*rval));
-	
 	if ( filter && assign ) {
+
+		if ( rval->syms && 0 == rval->size ) {
+			/* cannot add to a table that we didn't create */
+			return 0;
+		}
+
 		/* count the number of valid symbols */
-		for (sp=syms,n=0,nDstSyms=0,nDstChars=0; n<nsyms; sp+=symSize,n++) {
+		if ( (flags & CEXP_SYMTBL_FLAG_NO_STRCPY) ) {
+			for (sp=syms,n=0,nDstSyms=0; n<nsyms; sp+=symSize,n++) {
+				if ((symname=filter(sp,closure))) {
+					nDstSyms++;
+				}
+			}
+			nDstChars = 0;
+		} else {
+			for (sp=syms,n=0,nDstSyms=0,nDstChars=0; n<nsyms; sp+=symSize,n++) {
 				if ((symname=filter(sp,closure))) {
 					nDstChars+=strlen(symname)+1;
 					nDstSyms++;
 				}
+			}
 		}
-
 
 		/* create our copy of the symbol table - the object format contains
 		 * many things we're not interested in and also, it's not
 		 * sorted...
 		 */
-		
-		/* allocate all the table space */
-		if (!(rval->syms=(CexpSym)malloc(sizeof(CexpSymRec)*(nDstSyms+1))))
-			goto cleanup;
-	
-		if (!(rval->strtbl=(char*)malloc(nDstChars)) ||
-   	     !(rval->aindex=(CexpSym*)malloc(nDstSyms*sizeof(*rval->aindex))))
-			goto cleanup;
+
+		if ( nDstSyms > rval->size - rval->nentries ) {
+			/* allocate all the table space */
+			if ( ! (rval->syms=(CexpSym)realloc(rval->syms, sizeof(rval->syms[0])*(rval->nentries + nDstSyms + 1))) )
+				goto cleanup;
+
+			rval->size = rval->nentries + nDstSyms;
+		}
+
+		if ( nDstChars ) {
+			if ( !(strtbl = malloc(sizeof(*strtbl))) )
+				goto cleanup;
+			if ( !(strtbl->chars = malloc(nDstChars)) ) {
+				free( strtbl );
+				strtbl = 0;
+				goto cleanup;
+			}
+			strtbl->next = rval->strtbl;
+			rval->strtbl = strtbl;
+		}
 	
 		/* now copy the relevant stuff */
-		for (sp=syms,n=0,cesp=rval->syms,dst=rval->strtbl; n<nsyms; sp+=symSize,n++) {
+		dst = strtbl ? strtbl->chars : 0;
+		for (sp=syms,n=0,cesp=rval->syms + rval->nentries; n<nsyms; sp+=symSize,n++) {
 			if ((symname=filter(sp,closure))) {
 					memset(cesp,0,sizeof(*cesp));
-					/* copy the name to the string table and put a pointer
-					 * into the symbol table.
-					 */
-					cesp->name=dst;
-					while ((*(dst++)=*(symname++)))
+					if ( (flags & CEXP_SYMTBL_FLAG_NO_STRCPY) ) {
+						cesp->name=symname;
+					} else {
+						/* copy the name to the string table and put a pointer
+						 * into the symbol table.
+						 */
+						cesp->name=dst;
+						while ((*(dst++)=*(symname++)))
 							/* do nothing else */;
+					}
 					cesp->flags = 0;
-					rval->aindex[cesp-rval->syms]=cesp;
 	
 					assign(sp,cesp,closure);
 	
@@ -370,40 +338,66 @@ int			n,nDstSyms,nDstChars;
 		/* mark the last table entry */
 		cesp->name=0;
 	} else { /* no filter or assign callback -- they pass us a list of symbols in already */
-		nDstSyms   = nsyms;
-		if ( !(rval->aindex=(CexpSym*)malloc(nDstSyms*sizeof(*rval->aindex))) )
-			goto cleanup;
-		rval->syms = syms;
-		for ( cesp = rval->syms; cesp->name; cesp++ ) {
-			rval->aindex[cesp-rval->syms] = cesp;
+		if ( rval->syms ) {
+			/* cannot add an existing list of symbols to another */
+			return 0;
 		}
+		nDstSyms   = nsyms;
+		rval->syms = syms;
 	}
 
-	rval->nentries=nDstSyms;
-
-	/* sort the tables */
-	qsort((void*)rval->syms,
-		rval->nentries,
-		sizeof(*rval->syms),
-		_cexp_namecomp);
-	qsort((void*)rval->aindex,
-		rval->nentries,
-		sizeof(*rval->aindex),
-		_cexp_addrcomp);
+	rval->nentries += nDstSyms;
 
 	return rval;
 
 cleanup:
-	cexpFreeSymTbl(&rval);
+	if ( stbl ) {
+		/* leave old table alone */
+	} else {
+		cexpFreeSymTbl(&rval);
+	}
 	return 0;
 }
 
+CexpSymTbl
+cexpCreateSymTbl(void *syms, int symSize, int nsyms, CexpSymFilterProc filter, CexpSymAssignProc assign, void *closure)
+{
+CexpSymTbl rval;
+
+	if ( (rval = cexpAddSymTbl( 0, syms, symSize, nsyms, filter, assign, closure, 0)) ) {
+		cexpSortSymTbl( rval );
+	}
+	return rval;
+}
+
+/* (Re-) Build sorted index of addresses */
+int
+cexpIndexSymTbl(CexpSymTbl t)
+{
+int i;
+
+	t->aindex = (CexpSym*)realloc(t->aindex, t->nentries * sizeof(*t->aindex));
+
+	if ( t->nentries && ! t->aindex )
+		return -1;
+
+	for ( i = 0; i < t->nentries; i++ ) {
+		t->aindex[i] = &t->syms[i];
+	}
+	qsort((void*)t->aindex,
+		t->nentries,
+		sizeof(*t->aindex),
+		_cexp_addrcomp);
+
+	return 0;
+}
 
 void
 cexpFreeSymTbl(CexpSymTbl *pt)
 {
 CexpSymTbl	st=*pt;
 CexpSym		s;
+CexpStrTbl  strs;
 int			i;
 	if (st) {
 		/* release help info */
@@ -413,7 +407,11 @@ int			i;
 			}
 		}
 		free(st->syms);
-		free(st->strtbl);
+		while ( (strs = st->strtbl) ) {
+			st->strtbl = strs->next;
+			free(strs->chars);
+			free(strs);
+		}
 		free(st->aindex);
 		free(st);
 	}
@@ -497,6 +495,9 @@ int  verbose=0;
 		switch (v->type) {
 			case TUCharP:
 				newhelp = v->tv.p;
+				break;
+			case TUInt:
+				verbose = v->tv.i;
 				break;
 			case TULong:
 				verbose = v->tv.l;

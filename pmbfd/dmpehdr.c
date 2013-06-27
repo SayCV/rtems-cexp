@@ -1,4 +1,4 @@
-/* $Id: dmpehdr.c,v 1.3 2008/04/19 00:40:32 strauman Exp $ */
+/* $Id: dmpehdr.c,v 1.4 2009/06/25 16:11:55 strauman Exp $ */
 
 /* 
  * Authorship
@@ -59,6 +59,7 @@ static const char *pmelf_ehdr_type_s[] = {
 static const char *pmelf_ehdr_machine_s(Elf32_Half idx)
 {
 	switch ( idx ) {
+		case EM_SPARC:  return "SPARC";
 		case EM_386:    return "Intel x86";
 		case EM_68K:    return "Motorola 68k";
 		case EM_PPC:    return "PowerPC";

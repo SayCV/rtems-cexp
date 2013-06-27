@@ -575,7 +575,7 @@ static int _kt_parse_keybinding_string(const char *keyseq, char *binary,
 /*
  * Convert the character to a control character.
  */
-	*optr++ = MAKE_CTRL(c);
+	*optr++ = MAKE_CTRL((int)c);
       } else {
 	*optr++ = *iptr++;
       };
@@ -605,7 +605,7 @@ static int _kt_parse_keybinding_string(const char *keyseq, char *binary,
  */
     case 'C':
       if(_kt_is_emacs_ctrl(iptr)) {
-	*optr++ = MAKE_CTRL(iptr[2]);
+	*optr++ = MAKE_CTRL((int)iptr[2]);
 	iptr += 3;
       } else {
 	*optr++ = *iptr++;

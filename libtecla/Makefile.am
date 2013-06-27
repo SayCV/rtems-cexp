@@ -43,11 +43,16 @@ man1_MANS  = $(foreach xx,$(wildcard $(srcdir)/man/prog/*.in),$(xx:%.in=%))
 
 endif
 
-EXTRA_DIST = $(wildcard $(srcdir)/man/func/*.in)
-EXTRA_DIST+= $(wildcard $(srcdir)/man/libr/*.in)
-EXTRA_DIST+= $(wildcard $(srcdir)/man/misc/*.in)
-EXTRA_DIST+= $(wildcard $(srcdir)/man/file/*.in)
-EXTRA_DIST+= $(wildcard $(srcdir)/man/prog/*.in)
+MANINP = $(wildcard $(srcdir)/man/func/*.in)
+MANINP+= $(wildcard $(srcdir)/man/libr/*.in)
+MANINP+= $(wildcard $(srcdir)/man/misc/*.in)
+MANINP+= $(wildcard $(srcdir)/man/file/*.in)
+MANINP+= $(wildcard $(srcdir)/man/prog/*.in)
+
+EXTRA_DIST = $(MANINP)
+EXTRA_DIST+=$(MANINP:%.in=%)
+
+MAINTAINERCLEANFILES=$(MANINP:%.in=%)
 
 # Also dist the prebuilt html pages; user needs man2html
 # to reconstruct those...
@@ -60,7 +65,7 @@ EXTRA_DIST+= getline.c.opostdiff
 EXTRA_DIST+= enhance.c demo2.c demo3.c demo.c 
 
 # original libtecla stuff
-EXTRA_DIST+= Makefile.in.orig Makefile.rules Makefile.stub Makefile libtecla.map
+EXTRA_DIST+= Makefile.in.orig Makefile.rules Makefile.stub libtecla.map
 
 EXTRA_DIST+= update_version update_html
 

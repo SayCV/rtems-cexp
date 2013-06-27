@@ -1,4 +1,245 @@
+Changes since CEXP-2.2
+Changes since CEXP-2.1
+ 2013/01/28:
+ - removed libtecla/Makefile (see next note) - conflicts with autotool-generated
+   version.
+ - renamed Makefile->makefile; Makefile in EXTRA_DIST results in
+   the auto-generated Makefile (in the build-directory) to be distributed;
+   even if we say EXTRA_DIST+=$(srcdir)/Makefile :-(
+ - configure.ac: FIXED ill written bash conditional which resulted
+   in binutils/libiberty always being configured (event when not present
+   -> error).
+ - binutils-2.23.diff: added hunk which fixes bfd/coffcode.h (missing
+   #include directive).
+ - configure.ac: DONT configure 'binutils' but configure individual
+   subdirectories: binutils/libiberty, binutils/bfd, binutils/opcodes.
+ 2013/01/23:
+ - INSTALL: document --enable-pthreads
+ - cexp.c: renamed argv[0] to "cexpsh" when called from cexpsh()
+   wrapper.
+ - cexp.c: don't call 'hello' if there is a script or command
+   string.
+ - cexp.c: don't ever become interactive after script or command
+   string from a nested call of cexpsh.
+ - binutils-2.23.diff: added patch for ppc-dis.c which takes out
+   stuff which relies on elf-bfd. pmbfd could add an 'owner' member
+   to asection but it seems overkill just to support the PPC_VLE
+   dialect in the very unlikely case of a non-ppc-elf target.
+ - configure.ac: create 'binutils/bfd/bfd_stdint.h' (needed by
+   binutils-2.13-opcodes.
+ 2013/01/17:
+ - elfsyms.c, cexpsymsP.h, rshload.c: added fourth argument to
+   rshLoad(): a 'long' pointer where the number of bytes read
+   is stored.
+ - elfdlmap.c, elfsyms.c, xsyms.c: silenced compiler warnings.
+ - context.h: silenced compiler warnings (include ansidecl.h when 
+   appropriate).
+ - cexpsyms.c: don't print warning when removing redundant symbols
+   with different addresses; seems they can point to plt and executable...
+ - cexpsegs-powerpc-rtems.c: silenced compiler warnings.
+ - cexpmod.c: silenced compiler warnings. BUGFIX: cexpSymLkAddrIdx()
+   returned 'margin' instead of symbol table index.
+ - cexp.c: silenced compiler warning
+ - bfd-disas.c: silenced compiler warning (printf format for pointer)
+ - INSTALL, binutils-2.23.diff, configure.ac: Updated; can now use
+   binutils-2.23
+ - configure.ac: added help info (--disable-loader enables support
+   for dynamic symbols).
+ 2013/01/16:
+ - cexpmod.c, cexpsymsP.h, elfdlmap.c, elfsyms.c, rshload.c,
+   xsyms.c, cexpsegs-powerpc-rtems.c:
+   Fixed compiler warnings.
+ - BUGFIX: cexpmod.c. segment pointer in module structure was
+   dereferenced unconditionally but it can be NULL. Added 
+   respective checks.
+ - cexpmod.h, cexpmodP.h: moved cexpSymLkAddrIdx() from public to
+   private header; added new cexpSymLkAddrRange().
+ - bfdstuff.c, cexpmod.c, cexpsyms.c, cexpsymsP.h, elfsyms.c:
+   Added routine 'cexpIndexSymTbl()' for constructing the address
+   index table explicitly. This is now called after the symbol
+   table has been built. Memory for aindex is not allocated at
+   module creation but only when an index table is built.
+ - cexpmod.c: BUGFIX - let cexpSymLkAddrIdx() look in all modules
+   for a given address and don't break as soon as a close address
+   is found but keep searching and return the closest one.
+   If printing is required then info from all modules is dumped.
+ - cexpsyms.c: BUGFIX - sometimes the same symbol can be present
+   in an executable's symbol table AND dynamic symbol table
+   (ELF executable). This causes problems when help tables are
+   added because only one instance ends up with the help info.
+   Help is added searching for address whereas symbol lookup
+   is by name. The order in which results are found (for same
+   key) is undefined - hence the problem...
+   We mitigate this by eliminating redundant symbols after sorting
+   them.
+ 2013/01/14:
+ - libtecla/hash.c, libtecla/keytab.c, cexp.c, cexp.y, bfdstuff.c,
+   rshload.c, cexpmod.c:
+   silenced compiler warnings by casting chars to ints when using
+   ctype.h (isspace & friends), removing unused stuff etc.
+ 2013/01/09:
+ - cexp.y, cexpsyms.c, ctyps.c, ctyps.h: preliminary support for
+   'int' type. Missing pieces are marked with an /* INTFIX */ comment.
+ 2013/01/09:
+ - Makefile.am: No need to link the demo statically. With the new
+   shared library support the linux demo works actually better when
+   linked dynamically.
+ 2013/01/09:
+ - bfdstuff.c, elfsyms.c, cexp.c, cexp.h:
+   !!!! API CHANGE of cexpSearchFile() !!!!
+   (but this routine is probably not used outside of cexp itself).
+   No longer use a char ** argument to pass a filename in and the
+   resolved pathname out. This is ugly and creates conflicts when
+   we qualify the filename arg 'const'. See cexp.h for the new
+   semantics.
+ - elfsyms.c, cexpmodP.h, cexpmod.c, cexp.c, cexp.h, bfdstuff.c:
+   added 'const' to string arguments to
+   cexpSlurpElf(), cexpLoadFile(), cexpModuleFindByName(),
+   cexpModuleDumpGdbSectionInfo(), lkup(), cexpModuleLoad(),
+   cexpModuleName().
+ 2013/01/09:
+ - getopt/mygetopt_r.h, getopt/mygetopt_r.c: declare string argument
+   'optstr' as 'const'.
+ 2012/12/03:
+ - elfdlsyms.c: BUGFIX: must handle the case where both, HASH and GNU_HASH 
+   are present. Code gave preference to HASH but later checked for GNU_HASH
+   and used incomplete information (hhdr).
+ 2012/07/17:
+ - ctyps.h, ctyps.c: introduced UInt type (not used yet). Use designated
+   array initializers when building type converter matrix.
+ - cexpsyms.c: BUGFIX - _cexp_addrcomp() cannot just return 'int'
+   difference between pointers. Result is wrong for e.g.,
+   (void *) 1 - (void*)(-1) or if pointers are larger than 'int'.
+   We now do explicit pointer comparison.
+ 2012/07/16:
+ - Makefile.am, configure.ac, elfsyms.c, elfdlsyms.c elfdlsyms.h:
+   added support for adding dynamic symbols of all dependent shared
+   libraries (currently linked to executable). This needs GNU
+   extension dl_iterate_phdrs() from link.h
+ - cexpsyms.c: BUGFIX - must not add 'nentries' when computing aindex
+   array index.
+ 2012/07/16:
+ - cexpmod.c: BUGFIX - addrInModule dereferenced 'segs' which may be NULL if
+   loader is disabled. Added checks for USE_LOADER.
+ 2012/07/12:
+ - cexpsyms.c, cexpsymsP.h:
+    o added cexpNewSymTbl(), cexpSortSymTbl(), cexpAddSymTbl().
+      These allow for constructing a single symbol table from
+      multiple external tables.
+    o Support re-using external strings w/o copying them.
+ - elfsyms.c: try pmelf_mapstrm() first and fall back on pmelf_newstrm.
+ - elfsyms.c:
+     o undef USE_ELF_MEMORY (but copy to memory if loading via rsh)
+     o use cexpSearchFile() to locate symbol file
+ - xsyms.c:
+    o added option to accept undefined symbols.
+    o check return value of pmelf_newstrm().
+ - Makefile.am, configure.ac, cexp.c, cexplock.h, cexplock.c, cexpmod.c, 
+   context.h:
+   Implemented support for using pthread mutexes, rwlocks and thread-specific
+   keys to support multithreaded CEXP on pthread platforms. 
+   Must be enabled at configure-time by giving --enable-pthreads.
+ 2012/07/11:
+ - cexp.c: BUGFIX - cexpSearchFile() must not free 'thename' if it is handed
+           out to the user (ugly API anyways).
+ - cexpsyms.c, rshload.c, Makefile.am: moved rshLoad() into separate file.
+ 2012/06/28:
+ - cexp.c, configure.ac: added '-i/-I' options and --enable-interactive-default
+ - cexp.c: fall back to trying argv[0] as a symbol file if no -s given and
+   no internal symbol table is found.
+ - configure.ac: for linux/host demo, link terminfo (libtinfo) if necessary/available.
 Changes since CEXP-2.0.beta
+ 2011/10/10:
+ - libtecla/Makefile.am: add manpages to EXTRA_DIST and MAINTAINERCLEANFILES.
+ 2011/10/10:
+ - Makefile.am: add cxxdummy to EXTRA_DIST.
+ - Makefile.am: add cpptest contents explicitly to EXTRA_DIST (instead of
+                entire subdir which would include CVS/
+ 2011/08/04:
+ - Makefile.am: export host_alias, host_os, and host_cpu.
+ 2011/07/15:
+ - cexp.c: set terminal to VMIN/VTIME=1/0 in native readline (no readline, no tecla).
+ 2011/07/15:
+ - Makefile.am: export rtems_bsp, RTEMS_BSP, enable_rtemsbsp, package_subdir
+   variables so third-party makefiles 'inherit' them (in case any is embedded
+   in an installation path/prefix).
+ 2010/06/10:
+ - configure.ac: check for multilibbed cpukit only if host_os is RTEMS.
+ 2010/05/06:
+ - Makefile.am:
+    o enforce linking undefined symbols needed by test modules (demo program)
+    o link demo with CXX
+ - bfdstuff.c: BUGFIX -- Ignore relocations that refer to a symbol in a
+               discarded linkonce section.
+               This should also fix a problem reported by Luciano Piccoli where
+               a module refused to load because the .eh_frame section
+               had a relocation referring to the section name of a discarded
+               linkonce. Since that section had been folded into .text in
+               the main executable it could not be found.
+               During testing I also found that just relocating to the
+               previous instance of a linkonce section is incorrect because
+               to compiler would sometimes generate slightly different code
+               resulting in different section sizes (original vs. discarded
+               linkonce). Unless the relocation referring the discarded linkonce
+               is ignored (-> value 0 which is in turn ignored by the libgcc
+               run-time code) a bad/incorrect exception frame could be registered.
+ - cexp.c:    Added 'sigaction' handler which prints offending SIGSEGV address.
+ - cexpmod.c:
+    o BUGFIX -- 'addrInModule()' algorithm skipped system module which
+      is never associated with any segment. Thus 'lkaddr()' never found
+      anything located in the main executable :-(
+    o BUGFIX -- when a module is unloaded (linux demo) then we cannot
+      just revoke 'executable' memory permission; the module memory is
+      not page aligned and therefore 'x' could be removed from adjacent
+      'live' module. Just always leave executable permission on...
+ - configure.ac, Makefile.am, cpptest/*.c, cpptest/*.cc, cpptest/Makefile.am,
+   cpptest/st.test: Added test code. So far, loading of common symbols, 
+   linkonce sections, c++ exceptions and constructor/destructor ordering
+   are tested.
+ - configure.ac: Check for availability of HAVE_SIGNALS, HAVE_SIGINFO
+   on non-rtems systems.
+ - m4/rtems-tools.m4: Look for 'nm' utility, too. 
+ 
+ 2010/03/17:
+ - bfdstuff.c: Completely ignore zero-sized sections marked SEC_ALLOC
+   (by removing the SEC_ALLOC flag) so that no section symbol is
+   recorded. Since no space is allocated for such a section the 
+   value of a section symbol would be invalid and this results in
+   gdb confusion...
+ 2010/02/17:
+ - libtecla/getline.c: always include <sys/ioctl.h> (also under __rtems__)
+   in order to get TIOCGWINSZ.
+   Maintain 'signals_overridden' flag also under __rtems__.
+ 2010/02/07:
+ - libtecla/configure.in: added --enable-ansiterm configure option (enabled
+   by default for RTEMS if not explicitly disabled and disabled by default
+   on other OSes) to avoid dependency on curses/termcap (assuming ANSI
+   terminal).
+ 2009/12/14:
+ - BUGFIX: cexpsh("script") would not terminate because of missing 'else'
+   in nested if (which should have been 'else if'). This was a new bug
+   introduced with the '-c' option.
+ 2009/12/04:
+ - fixed all reduce/reduce and some shift/reduce conflicts in
+   the grammar.
+ - added stdio redirection.
+ - deprecated '<' for sourceing scripts; should now use '.'
+ - now have a dedicated FILE descriptor for parser error messages
+   (can be passed to cexpCreateParserCtx())
+ - added new callback argument to cexpCreateParserCtx() which
+   allows the user to be notified when stdio redirection occurs.
+ - added new '-c' option instructing cexpsh() to parse the option
+   string argument.
+ 2009/12/02:
+ - pmelf: bugfix in PPC attribute matcher;
+ - pmelf: added support for Tag_GNU_Power_ABI_Struct_Return.
+ - bfdstuff.c: added undocumented global variable
+   '_cexpForceIgnoreObjAttrMismatches' which can be set to nonzero
+   in order to force the BFD loader to ignore object attribute
+   mismatches.
+ 2009/06/25: 
+ - pmelf: added basic support for SPARC
+
 Changes since CEXP-1.6.beta
 
  2008/10/8:

@@ -1,4 +1,4 @@
-/* $Id: dmprels.c,v 1.1 2008/10/07 21:38:38 till Exp $ */
+/* $Id: dmprels.c,v 1.4 2012/07/12 17:35:22 strauman Exp $ */
 
 /* 
  * Authorship
@@ -49,7 +49,7 @@
 #include <string.h>
 #include <errno.h>
 
-#include <pmelfP.h>
+#include "pmelfP.h"
 
 #include <inttypes.h>
 #define T_REL32    1
@@ -60,6 +60,7 @@
 static const char *reltype(unsigned mach, Elf_Reloc *r)
 {
 	switch ( mach ) {
+		case EM_SPARC:  return pmelf_sparc_rel_name( &r->ra32 );
 		case EM_386:    return pmelf_i386_rel_name( &r->r32 );
 		case EM_68K:    return pmelf_m68k_rel_name( &r->ra32 );
 		case EM_PPC:    return pmelf_ppc_rel_name( &r->ra32 );
@@ -96,7 +97,7 @@ uint64_t    st_value;
 #ifdef PMELF_CONFIG_ELF64SUPPORT
 			case ELFCLASS64:
 				{
-					psect = (Elf_Shdr*)&sht->shdrs.p_p_s64[idx];
+					psect = (Elf_Shdr*)&sht->shdrs.p_s64[idx];
 					switch ( psect->s64.sh_type ) {
 						case SHT_REL:   type = T_REL64;  break;
 						case SHT_RELA:  type = T_RELA64; break;

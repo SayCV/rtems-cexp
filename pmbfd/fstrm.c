@@ -1,4 +1,4 @@
-/* $Id: fstrm.c,v 1.3 2008/05/27 20:14:21 till Exp $ */
+/* $Id: fstrm.c,v 1.5 2012/07/12 17:35:22 strauman Exp $ */
 
 /* 
  * Authorship
@@ -46,6 +46,11 @@
  */ 
 #include "pmelfP.h"
 
+static int close(void *f, int noclose)
+{
+	return noclose ? 0 : fclose( f );
+}
+
 Elf_Stream
 pmelf_newstrm(const char *name, FILE *f)
 {
@@ -74,8 +79,9 @@ Elf_Stream s;
 
 	s->f    = f;
 	s->read = (void*)fread;
-	s->seek = (void*)fseek;
+	s->seek = (void*)fseeko;
+	s->tell = (void*)ftello;
 	s->write= (void*)fwrite;
-	s->close= (void*)fclose;
+	s->close= (void*)close;
 	return s;
 }

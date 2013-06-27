@@ -1,5 +1,8 @@
 /* config.h.in.  Generated from configure.ac by autoheader.  */
 
+/* Whether to become interactive by default after processing a script */
+#undef CEXP_INTERACTIVE_DEFAULT
+
 /* use RTEMS notepad $withval for storing context info */
 #undef CEXP_RTEMS_NOTEPAD
 
@@ -9,20 +12,35 @@
 /* do we have the bfd internal dis-asm.h header */
 #undef HAVE_BFD_DISASSEMBLER
 
+/* If we have dl_iterate_phdr in link.h */
+#undef HAVE_DL_ITERATE_PHDR
+
 /* do we have the bfd internal elf-bfd.h header */
 #undef HAVE_ELF_BFD_H
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
+/* If we have <link.h> */
+#undef HAVE_LINK_H
+
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
+
+/* If the target supports pthreads */
+#undef HAVE_PTHREADS
 
 /* Define to 1 if you have the `rcmd' function. */
 #undef HAVE_RCMD
 
 /* If we found RTEMS headers; otherwise ugly hacks will be used! */
 #undef HAVE_RTEMS_H
+
+/* If sigaction supports a siginfo_t arg */
+#undef HAVE_SIGINFO
+
+/* If the OS uses signals to indicate faults etc. */
+#undef HAVE_SIGNALS
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -59,7 +77,7 @@
 
 
 /* Disable thread protection on OS other than RTEMS */
-#ifndef __rtems__
+#if !defined(__rtems__) && !defined(HAVE_PTHREADS)
 #define NO_THREAD_PROTECTION
 #endif
 
@@ -78,6 +96,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION

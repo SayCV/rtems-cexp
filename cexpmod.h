@@ -1,4 +1,4 @@
-/* $Id: cexpmod.h,v 1.10 2008/07/23 19:55:49 strauman Exp $ */
+/* $Id: cexpmod.h,v 1.11 2013/01/16 18:41:24 strauman Exp $ */
 #ifndef CEXP_MODULE_H
 #define CEXP_MODULE_H
 
@@ -58,15 +58,6 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-
-/* search for an address in all modules giving its aindex 
- * to the *pmod's aindex table
- *
- * RETURNS: aindex or -1 if the address is not within the
- *          boundaries of any module.
- */
-int
-cexpSymLkAddrIdx(void *addr, int margin, FILE *f, CexpModule *pmod);
 
 /* initialize vital stuff; must be called excactly ONCE at program startup */
 void

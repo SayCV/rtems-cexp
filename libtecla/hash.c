@@ -506,7 +506,7 @@ static HashNode *_new_HashNode(HashTable *hash, const char *name, int code,
     const char *src = name;
     char *dst = node->symbol.name;
     for( ; *src; src++,dst++)
-      *dst = tolower(*src);
+      *dst = tolower((int)*src);
     *dst = '\0';
   };
   return node;

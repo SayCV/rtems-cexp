@@ -165,6 +165,9 @@ char *rval,*cp;
 		tnew.c_cflag &= ~(CSIZE | PARENB);
 		tnew.c_cflag |= CS8;
 
+		tnew.c_cc[VMIN]  = 1;
+		tnew.c_cc[VTIME] = 0;
+
 		tcsetattr(fd, TCSANOW, &tnew);
 	} else {
 		fd = -1;
@@ -240,15 +243,17 @@ bail:
 
 extern const char *cexp_build_date;
 
+#ifndef NO_THREAD_PROTECTION
 /* A lock for various purposes */
 static CexpLock cexpGblLock;
+#endif
 
 #ifdef YYDEBUG
 extern int cexpdebug;
 #endif
 
 static void
-usage(char *nm)
+usage(const char *nm)
 {
 	fprintf(stderr, "usage: %s [-h] [-v]",nm);
 #ifdef YYDEBUG
@@ -257,11 +262,15 @@ usage(char *nm)
 	fprintf(stderr," [-s <symbol file>]");
 	fprintf(stderr," [-a <cpu_arch>]");
 	fprintf(stderr," [-p <prompt>]");
+	fprintf(stderr," [-c <expression>]");
 	fprintf(stderr," [<script file>]\n");
 	fprintf(stderr, "       C expression parser and symbol table utility\n");
 	fprintf(stderr, "       -h print this message\n");
+	fprintf(stderr, "       -I become interactive after processing script or -c\n");
+	fprintf(stderr, "       -i do not become interactive after processing script or -c\n");
 	fprintf(stderr, "       -v print version information\n");
 	fprintf(stderr, "       -p <prompt> set prompt\n");
+	fprintf(stderr, "       -c <expression> evaluate expression and return\n");
 	fprintf(stderr, "       -q quiet evaluation of scripts\n");
 #ifdef HAVE_BFD_DISASSEMBLER
 	fprintf(stderr, "       -a set default CPU architecture for disassembler\n");
@@ -277,9 +286,9 @@ usage(char *nm)
 }
 
 static void
-version(char *nm)
+version(const char *nm)
 {
-	fprintf(stderr,"This is CEXP release $Name: CEXP_Release_2_0_beta $, build date %s\n",cexp_build_date);
+	fprintf(stderr,"This is CEXP release $Name: CEXP_Release_2_2 $, build date %s\n",cexp_build_date);
 }
 
 static void
@@ -320,7 +329,7 @@ cexp_regex	*rc=arg;
 
 /* alternate entries for the lookup functions */
 int
-lkup(char *re)
+lkup(const char *re)
 {
 extern	CexpSym _cexpSymLookupRegex();
 cexp_regex		*rc=0;
@@ -422,10 +431,36 @@ if (!margin)
 }
 
 #ifdef HAVE_SIGNALS
+#ifdef HAVE_SIGINFO
+
+static void (*the_handler)(int) = 0;
+
+static void
+sigact(int signum, siginfo_t *p_info, void *arg)
+{
+	printf("SEGV address %p\n", p_info->si_addr);
+	if ( the_handler )
+		the_handler( signum );
+}
+#endif
+
 static void
 siginstall(void (*handler)(int))
 {
+#ifdef HAVE_SIGINFO
+/* A hack (for debugging) -- we wrap the user handler
+ * so that we can print the violating address.
+ * This is JUST A DEBUGGING device.
+ */
+struct sigaction a;
+	a.sa_sigaction = sigact;
+	sigemptyset(&a.sa_mask);
+	a.sa_flags     = SA_SIGINFO;
+	sigaction(SIGSEGV, &a, 0);
+	the_handler = handler;
+#else
 	signal(SIGSEGV, handler);
+#endif
 	signal(SIGBUS,  handler);
 }
 #endif
@@ -435,6 +470,11 @@ cexpInit(CexpSigHandlerInstallProc installer)
 {
 static int done=0;
 	if (!done) {
+		if ( cexpLockingInitialize() ) {
+			fprintf(stderr,"Unable to initialize locking - fatal Error\n");
+			fflush(stderr);
+			exit(1);
+		}
 #ifdef HAVE_SIGNALS
 		if (!installer)
 			installer=siginstall;
@@ -442,7 +482,11 @@ static int done=0;
 		cexpSigHandlerInstaller=installer;
 		cexpModuleInitOnce();
 		cexpVarInitOnce();
-		cexpContextInitOnce();
+		if ( cexpContextInitOnce() ) {
+			fprintf(stderr,"Unable to initialize context - fatal Error\n");
+			fflush(stderr);
+			exit(1);
+		}
 		cexpLockCreate(&cexpGblLock);
 		done=1;
 	}
@@ -537,7 +581,7 @@ char    *p;
 
 	va_start(ap,arg0);
 
-	argv[argc++]="cexp_main";
+	argv[argc++]="cexpsh";
 	if (arg0) {
 		argv[argc++]=arg0;
 
@@ -615,37 +659,69 @@ static char *skipsp(register char *p)
 	return p; 
 }
 
-static char *getp(register char *p)
+static char *getp(register char *p, char **endp)
 {
-char *e;
+char *e,*t;
 char term;
+int  warn = 0;
+
+	switch ( *p++ ) {
+		case '<':
+			warn = 1;
+		break;
+
+		case '.':
+			/* '.' must be separated by space or there must
+			 * be a string terminator.
+			 */
+			if ( !isspace((int)*p) && '\'' != *p && '"' != *p )
+				return 0;
+		break;
+
+		default: /* not a 'source script' command */
+			return 0;
+	}
+
 	p = skipsp(p);
 	if ( (term='\'') ==  *p || (term='"') == *p ) {
 		p++;
 		if ( (e = strchr(p,term)) ) {
 			/* '..' or ".." commented string -- no escapes supported */
-			*e=0;
-			return p;
+			t = e+1;
+			goto check_trailing;
 		}
 		/* no terminator found; treat normally */
 		p--;
 	}
-	for ( e=p; *e && !isspace(*e); e++ )
+	for ( e=p; *e && !isspace((int)*e); e++ )
 		;
-	*e = 0;
+	t = e;
+
+check_trailing:
+	/* is there trailing stuff ? */
+	while ( *t ) {
+		if ( !isspace((int)*t) )
+			return 0;
+		t++;
+	}
+	if ( endp )
+		*endp = e;
+	if ( warn )
+		fprintf(stderr,"WARNING: '<' operator to 'source' scripts is deprecated -- use '.' (followed by blank) instead!\n");
 	return p;	
 }
 
 static int
-process_script(CexpParserCtx ctx, char *name, int quiet)
+process_script(CexpParserCtx ctx, const char *name, int quiet)
 {
 int  rval = 0;
 FILE *filestack[ST_DEPTH];
 int  sp=-1;
 char buf[500]; /* limit line length to 500 chars :-( */
 int  i;
+char *endp, *maybecomment;
 
-sprintf(buf,"<%s\n",name);
+sprintf(buf,". %s\n",name);
 
 goto skipFirstPrint;
 
@@ -660,10 +736,10 @@ do {
 	}
 skipFirstPrint:
 
-	p = skipsp(buf);
-    if ( '<' == *p ) {
-		/* extract path */
-        p = getp(p+1);
+	maybecomment = p = skipsp(buf);
+    if ( (p = getp(p, &endp)) ) {
+		/* tag end of extracted path */
+		*endp = 0;
 		/* PUSH a new script on the stack */
 		if ( !quiet ) {
 			for ( i=0; i<=sp; i++ )
@@ -682,7 +758,7 @@ skipFirstPrint:
 		}
     } else {
 		/* handle simple comments as a courtesy... */
-		if ( '#' != *p ) {
+		if ( '#' != *maybecomment ) {
 			cexpResetParserCtx(ctx,buf);
 			cexpparse((void*)ctx);
 		}
@@ -697,16 +773,33 @@ skipFirstPrint:
 return rval;
 }
 
+#ifdef HAVE_TECLA
+static void redir_cb(CexpParserCtx ctx, void *uarg)
+{
+GetLine *gl = uarg;
+	gl_change_terminal(gl, stdin, stdout, 0);
+}
+#else
+#define redir_cb 0
+#endif
+
 int
 cexp_main1(int argc, char **argv, void (*callback)(int argc, char **argv, CexpContext ctx))
 {
 CexpContextRec		context;	/* the public parts of this instance's context */
 CexpContext			myContext;
 char				*line=0, *prompt=0, *tmp;
-char				*symfile=0, *script=0;
+const char			*symfile=0, *script=0, *arg_line = 0 ;
 int					rval=CEXP_MAIN_INVAL_ARG, quiet=0;
 MyGetOptCtxtRec		oc={0}; /* must be initialized */
 int					opt;
+int                 become_interactive =
+#ifdef  CEXP_INTERACTIVE_DEFAULT
+	CEXP_INTERACTIVE_DEFAULT
+#else
+	0
+#endif
+	;
 #ifdef HAVE_TECLA
 #define	rl_context  context.gl
 #else
@@ -714,9 +807,12 @@ int					opt;
 #endif
 char				optstr[]={
 						'h',
+						'i',
+						'I',
 						'v',
 						's',':',
 						'a',':',
+						'c',':',
 						'p',':',
 #ifdef YYDEBUG
 						'd',
@@ -735,6 +831,14 @@ while ((opt=mygetopt_r(argc, argv, optstr,&oc))>=0) {
 		case 'v': version(argv[0]);
 			return 0;
 
+		case 'i':
+			become_interactive = 0;
+		break;
+
+		case 'I':
+			become_interactive = 1;
+		break;
+
 #ifdef YYDEBUG
 		case 'd': cexpdebug=1;
 			break;
@@ -742,6 +846,8 @@ while ((opt=mygetopt_r(argc, argv, optstr,&oc))>=0) {
 		case 'q': quiet=1;
 			break;
 		case 's': symfile=oc.optarg;
+			break;
+		case 'c': arg_line=oc.optarg;
 			break;
 		case 'a': cexpBuiltinCpuArch = oc.optarg;
 			break;
@@ -754,6 +860,11 @@ while ((opt=mygetopt_r(argc, argv, optstr,&oc))>=0) {
 if (argc>oc.optind)
 	script=argv[oc.optind];
 
+if ( script && arg_line ) {
+	fprintf(stderr,"Cannot use both: -c option and a script\n");
+	return -1;
+}
+
 /* make sure vital code is initialized */
 
 {
@@ -762,12 +873,22 @@ if (argc>oc.optind)
 }
 
 if (!cexpSystemModule) {
+	int tried_builtin = 0;
 	if (!symfile) {
 		/* try to find a builtin table */
-		if ( !cexpModuleLoad(0,0) )
+		if ( !cexpModuleLoad(0,0) ) {
+			tried_builtin = 1;
+			/* Try the program name as a fallback */
+			symfile = argv[0];
+		}
+	} 
+	if ( symfile && !cexpModuleLoad(symfile,"SYSTEM")) {
+		if ( tried_builtin ) {
+			fprintf(stderr,"Unable to load system symbol table\n");
+		} else {
 			fprintf(stderr,"No builtin symbol table -- need a symbol file argument\n");
-	} else if (!cexpModuleLoad(symfile,"SYSTEM"))
-		fprintf(stderr,"Unable to load system symbol table\n");
+		}
+	}
 	if (!cexpSystemModule) {
 		usage(argv[0]);
 		return CEXP_MAIN_NO_SYMS;
@@ -804,13 +925,15 @@ if (!myContext) {
 #endif
 	/* register first instance running in this thread's context; */
 	cexpContextRegister();
-	if (!quiet)
+	if (!quiet && !script && !arg_line)
 		hello();
 } else {
 #ifdef HAVE_TECLA
 	/* re-use caller's line editor */
 	context.gl = myContext->gl;
 #endif
+	/* never become interactive if we're not the topmost instance */
+	become_interactive = 0;
 }
 /* push our frame to the top */
 context.next = myContext;
@@ -824,7 +947,7 @@ if ( !context.prompt && context.next && context.next->prompt )
 	context.prompt = strdup(context.next->prompt);
 
 do {
-	if (!(context.parser=cexpCreateParserCtx(quiet ? 0 : stdout))) {
+	if (!(context.parser=cexpCreateParserCtx(quiet ? 0 : stdout, stderr, redir_cb, rl_context))) {
 		fprintf(stderr,"Unable to create parser context\n");
 		usage(argv[0]);
 		rval = CEXP_MAIN_NO_MEM;
@@ -849,6 +972,9 @@ do {
 		if (script) {
 			if ( (rval = process_script(context.parser, script, quiet)) )
 				goto cleanup;
+		} else if (arg_line) {
+			cexpResetParserCtx(context.parser,arg_line);
+			cexpparse((void*)context.parser);
 		} else {
 
 			while ( (line=readline_r(
@@ -856,8 +982,9 @@ do {
 							rl_context)) ) {
 				/* skip empty lines */
 				if (*line) {
-					if ( '<' == *(tmp=skipsp(line)) ) {
-						process_script(context.parser,tmp+1,quiet);
+					tmp = skipsp(line);
+					if ( (tmp = getp(tmp, 0)) ) {
+						process_script(context.parser,tmp,quiet);
 					} else {
 						/* interactively process this line */
 						cexpResetParserCtx(context.parser,line);
@@ -868,7 +995,6 @@ do {
 				free(line); line=0;
 			}
 		}
-		
 	} else {
 			fprintf(stderr,"\nOops, exception caught\n");
 			/* setjmp passes 0: first time
@@ -879,12 +1005,17 @@ do {
 	}
 	
 cleanup:
-		script=0;	/* become interactive if script is killed */
+		script=0;	   /* become interactive if script is killed     */
+		arg_line=0;	   /* become interactive if expression is killed */
 		free(line);   			line=0;
 		free(prompt);           prompt=0;
 		cexpFreeParserCtx(context.parser); context.parser=0;
-	
-} while (-1==rval);
+
+		if ( become_interactive ) {
+			rval = -1;
+			become_interactive = 0;
+		}
+} while ( -1==rval );
 
 free(context.prompt);
 
@@ -1001,23 +1132,25 @@ cleanup:
  *       tmpfname, if non-NULL must hold a template name (mkstemp)
  */
 FILE *
-cexpSearchFile(char *path, char **pfname, char *fullname, char *tmpfname)
+cexpSearchFile(const char *path, const char *fname, char **pfullname, char *tmpfname)
 {
 FILE        *f = 0;
-char        *col, *thename=0;
+const char  *col;
+char        *thename=0;
+char        *fullname;
 #ifdef __rtems__
 struct stat	dummybuf;
 int		    is_on_tftpfs;
 #endif
 
 	/* Search relative file in the PATH */
-	if ( !fullname ) {
+	if ( !pfullname || !(fullname = *pfullname) ) {
 		if ( !(thename = malloc(MAXPATHLEN)) )
 			return 0;
 		fullname = thename;
 	}
 
-	if ( strchr(*pfname,'/') || !path )
+	if ( strchr(fname,'/') || !path )
 		path = "";
 	else {
 		/* no '/' AND path set; handle special case
@@ -1047,7 +1180,7 @@ int		    is_on_tftpfs;
 	/* don't append a separator if the prefix is empty */
 	if ( *fullname )
 		strcat(fullname,"/");
-	strcat(fullname,*pfname);
+	strcat(fullname, fname);
 		
 #ifdef __rtems__
 	/* The RTEMS TFTPfs is strictly
@@ -1062,7 +1195,7 @@ int		    is_on_tftpfs;
 			/* file was found but couldn't make copy; this is an error */
 			break;
 		}
-		*pfname=tmpfname;
+		strcpy(fullname, tmpfname);
 	} else
 #endif
 	if (  ! (f=fopen(fullname,"r")) ) {
@@ -1071,7 +1204,10 @@ int		    is_on_tftpfs;
 			break;
 		}
 	} else {
-		*pfname=fullname;
+		if ( pfullname && ! *pfullname ) {
+			*pfullname = thename;
+			thename    = 0;
+		}
 	}
 	}
 	free(thename);

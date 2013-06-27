@@ -1,6 +1,6 @@
 m4_include([./m4/cvstag.m4])
 
-AC_INIT(cexp, TILLAC_CVSTAG([$Name: CEXP_Release_2_0_beta $]), <strauman@slac.stanford.edu>)
+AC_INIT(cexp, TILLAC_CVSTAG([$Name: CEXP_Release_2_2 $]), <strauman@slac.stanford.edu>)
 
 AC_CANONICAL_BUILD
 AC_CANONICAL_HOST
@@ -26,7 +26,7 @@ TILLAC_RTEMS_SETUP(domultilib)
 
 # sys/termios.h and others can only be found outside of
 # the BSP installation area if cpukit was multilibbed :-(
-if test "${enable_multilib}" = "yes" ; then
+if test "${enable_multilib}" = "yes" && TILLAC_RTEMS_HOSTOS_IS_RTEMS ; then
 	AC_MSG_CHECKING([Checking for multilibbed cpukit])
 	if TILLAC_RTEMS_CPUKIT_MULTILIB ; then
 		AC_MSG_RESULT([Yes; good.]);
@@ -41,6 +41,15 @@ AC_ARG_ENABLE(cexp,
 	AC_HELP_STRING([--disable-cexp],
 		[dont build CEXP but only XSYMS])
 )
+
+AC_ARG_ENABLE(interactive-default,
+	AC_HELP_STRING([--enable-interactive-default],
+		[whether CEXP should become interactive by default after
+         processing scripts]),
+	[if test "$enable_interactive_default" = "yes"; then
+	AC_DEFINE(CEXP_INTERACTIVE_DEFAULT,1,
+		[Whether to become interactive by default after processing a script])
+	fi])
 
 AC_ARG_ENABLE(bfd,
 	AC_HELP_STRING([--disable-bfd],
@@ -59,7 +68,11 @@ AC_ARG_ENABLE(loader,
 		[remove the dynamic loader; using pmelf you can still read
 		the symbol table from an ELF file (unless you also say
 		--disable-elfsyms; in this case you must create and link a
-		'built-in' symbol table)])
+		'built-in' symbol table)
+
+         On systems with a dynamic linker (linux) this enables
+         support for reading dynamic symbols from the executable
+         and all dependent shared libraries (!).])
 )
 
 AC_ARG_ENABLE(text-segment,
@@ -106,6 +119,17 @@ AC_ARG_ENABLE(readline,
 		[disable using the readline library (used only if tecla is disabled)])
 )
 
+AC_ARG_ENABLE(tests,
+	AC_HELP_STRING([--enable-tests],
+		[build test code ])
+)
+
+AC_ARG_ENABLE(pthreads,
+	AC_HELP_STRING([--enable-pthreads],
+		[enable use of pthread mutexes and thread-specific keys etc. for
+         dealing with multithreaded applications])
+)
+
 AC_ARG_WITH(rtems-notepad,
 	AC_HELP_STRING([--with-rtems-notepad=<notepad_number>],
 		[use an RTEMS notepad (0..14) to store context info instead of a
@@ -114,6 +138,13 @@ AC_ARG_WITH(rtems-notepad,
 		                   $withval,
 						   [use RTEMS notepad $withval for storing context info])
 )
+
+# binutils-2.13 tries to use zlib automatically.
+# Unfortunately there seems to be no way to pass
+# arguments to sub-configure selectively. Hence
+# we disable zlib globally here
+#
+AS_VAR_APPEND([ac_configure_args],[" --without-zlib"])
 
 # VALIDATE OPTIONS
 
@@ -204,7 +235,6 @@ case "$canon_cpu" in
 	i?86 ) canon_cpu=i386
 	;;
 esac
-
 
 AC_MSG_CHECKING([Check if we could use pmbfd])
 # do we have relocations for our CPU arch ?
@@ -336,6 +366,7 @@ if test ! "$enable_cexp" = "no" ; then
 		AC_CONFIG_SUBDIRS(libtecla)
 		AC_DEFINE(HAVE_TECLA,1,[the tecla (reentrant line editor) library])
 		AC_CHECK_LIB(curses,tgetnum,[LIBS="$LIBS -lcurses"],[AC_CHECK_LIB(ncurses,tgetnum,[LIBS="$LIBS -lncurses"])])
+		AC_CHECK_LIB(tinfo,tgetnum,[LIBS="$LIBS -ltinfo"])
 	else if test ! "${enable_readline}" = "no" ; then
 		AC_CHECK_HEADER(readline/readline.h)
 		if test "${ac_cv_header_readline_readline_h}" = "yes" ; then
@@ -350,6 +381,23 @@ fi
 
 AH_TEMPLATE([HAVE_RTEMS_H])
 AC_CHECK_HEADER([rtems.h],[AC_DEFINE([HAVE_RTEMS_H],1,[If we found RTEMS headers; otherwise ugly hacks will be used!])])
+
+if test "$enable_pthreads" = "yes" ; then
+AC_CHECK_HEADER([pthread.h],
+	[AC_DEFINE([HAVE_PTHREADS],1,[If the target supports pthreads]) 
+	 LIBPTHREAD=-lpthread
+    ])
+fi
+AC_SUBST(LIBPTHREAD)
+
+AC_CHECK_HEADER([link.h],
+	[AC_DEFINE([HAVE_LINK_H],1,[If we have <link.h>])
+	 AC_CHECK_DECL(
+		[dl_iterate_phdr],
+		AC_DEFINE([HAVE_DL_ITERATE_PHDR],1,[If we have dl_iterate_phdr in link.h]),
+		[],
+		[[#define _GNU_SOURCE
+		#include <link.h>]])])
 
 # based on the features requested, check which bfd library to use
 
@@ -373,8 +421,18 @@ fi
 
 AC_MSG_NOTICE([enable_bfd: $enable_bfd, enable_pmbfd: $enable_pmbfd])
 
+if test x"$enable_bfd" = x"yes" || test ! x"$enable_opcodes" = x"no" ; then
+	AC_CONFIG_SUBDIRS(binutils/libiberty)
+	if test x"$enable_bfd" = x"yes" ; then
+		AC_CONFIG_SUBDIRS(binutils/bfd)
+	fi
+	if test ! x"$enable_opcodes" = x"no" ; then
+		AC_CONFIG_SUBDIRS(binutils/opcodes)
+	fi
+fi
+
+
 if test "$enable_bfd" = "yes"; then
-	AC_CONFIG_SUBDIRS(binutils)
 	AC_DEFINE(HAVE_ELF_BFD_H,1,[do we have the bfd internal elf-bfd.h header])
 else
 	# must configure pmbfd if host_os = build_os so that
@@ -388,8 +446,6 @@ fi
 
 if test ! "$enable_opcodes" = "no"; then
 	if test ! "$enable_bfd" = "yes"; then
-		AC_CONFIG_SUBDIRS(binutils/libiberty)
-		AC_CONFIG_SUBDIRS(binutils/opcodes)
 		# mock up a few things opcodes needs...
 		mkdir -p binutils/bfd
         case "${srcdir}" in
@@ -401,6 +457,7 @@ if test ! "$enable_opcodes" = "no"; then
           ;;
         esac
 		echo 999 > binutils/bfd/libtool-soversion
+		echo '#include <stdint.h>' > binutils/bfd/bfd_stdint.h
 	fi
 	AC_DEFINE(HAVE_BFD_DISASSEMBLER,1,[do we have the bfd internal dis-asm.h header])
 fi
@@ -422,12 +479,26 @@ AC_HAVE_FUNCS(rcmd vsnprintf)
 
 AH_VERBATIM(NO_THREAD_PROTECTION,[
 /* Disable thread protection on OS other than RTEMS */
-#ifndef __rtems__
+#if !defined(__rtems__) && !defined(HAVE_PTHREADS)
 #define NO_THREAD_PROTECTION
 #endif
 ])
 
-AC_CONFIG_FILES(Makefile)
+if test ! "${canon_os}" = "rtems" ; then
+	AC_CHECK_HEADER([signal.h],[AC_DEFINE(HAVE_SIGNALS, 1, [If the OS uses signals to indicate faults etc.])])
+	if test "${ac_cv_header_signal_h}" = "yes" ; then
+		AC_CHECK_TYPE([siginfo_t],[AC_DEFINE(HAVE_SIGINFO, 1, [If sigaction supports a siginfo_t arg])],,[#include <signal.h>])
+	fi
+fi
+
+AC_CONFIG_FILES([Makefile])
+
+if test "${enable_tests}" = "yes" ; then
+	AC_CONFIG_FILES([cpptest/Makefile])
+	test_subdirs=cpptest
+else
+	test_subdirs=
+fi
 
 # cannot use multilibs with BFD
 if ( test ! "${enable_bfd}" = "no" || test ! "${enable_opcodes}" = "no" ) && test "${enable_multilib}" = "yes" ; then
@@ -439,7 +510,7 @@ fi
 if test ! "$target_os" = "$host_os" ; then
 	AC_SUBST(THESUBDIRS,['$(patsubst %,'"$subdirs"',$(filter-out install%,$@))'])
 else
-	AC_SUBST(THESUBDIRS,["$subdirs"])
+	AC_SUBST(THESUBDIRS,["$subdirs $test_subdirs"])
 fi
 
 # Our particular snippet

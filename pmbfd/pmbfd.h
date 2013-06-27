@@ -1,4 +1,4 @@
-/* $Id: pmbfd.h,v 1.17 2009/03/12 04:42:14 strauman Exp $ */
+/* $Id: pmbfd.h,v 1.21 2013/01/23 15:52:06 strauman Exp $ */
 
 /* 
  * Authorship
@@ -95,6 +95,8 @@ typedef void *PTR;
 #error   "FALSE already defined to a value other than 0!"
 #endif
 
+#define STRING_COMMA_LEN(STR) (STR), (sizeof(STR) - 1)
+
 typedef long          file_ptr;
 
 typedef unsigned int flagword;
@@ -190,6 +192,9 @@ elf_get_size(bfd *abfd, asymbol *asym);
 unsigned
 elf_get_align(bfd *abfd, asymbol *asym);
 
+uint64_t
+elf_section_flags(asection *);
+
 #define align_power(addr, align)    \
   (((addr) + ((bfd_vma) 1 << (align)) - 1) & ((bfd_vma) -1 << (align)))
 
@@ -225,13 +230,31 @@ enum bfd_architecture {
 #define bfd_mach_mcf_isa_b_float               22
 #define bfd_mach_mcf_isa_b_float_mac           23
 #define bfd_mach_mcf_isa_b_float_emac          24
+	bfd_arch_sparc        =  6,
+#define bfd_mach_sparc                          1
+#define bfd_mach_sparc_sparclet                 2
+#define bfd_mach_sparc_sparclite                3
+#define bfd_mach_sparc_v8plus                   4
+#define bfd_mach_sparc_v8plusa                  5
+#define bfd_mach_sparc_sparclite_le             6
+#define bfd_mach_sparc_v9                       7
+#define bfd_mach_sparc_v9a                      8
+#define bfd_mach_sparc_v8plusb                  9
+#define bfd_mach_sparc_v9b                     10
 	bfd_arch_i386         =  9,
+#define bfd_mach_i386_intel_syntax     (1 << 0)
 #define bfd_mach_i386_i386	                    1
 #define bfd_mach_i386_i8086                     2
 #define bfd_mach_i386_i386_intel_syntax         3
 #define bfd_mach_x86_64                        64
 #define bfd_mach_x86_64_intel_syntax           65
-	bfd_arch_powerpc      = 21,
+	bfd_arch_l1om         = 10,
+#define bfd_mach_l1om                          66
+#define bfd_mach_l1om_intel_syntax             67
+	bfd_arch_k1om         = 11,
+#define bfd_mach_k1om                  (1 << 6)
+#define bfd_mach_k1om_intel_syntax     (bfd_mach_k1om | bfd_mach_i386_intel_syntax)
+	bfd_arch_powerpc      = 23, /* 21 in binutils-2.18 */
 #define bfd_mach_ppc                           32
 #define bfd_mach_ppc64                         64
 #define bfd_mach_ppc_403                      403
@@ -251,11 +274,12 @@ enum bfd_architecture {
 #define bfd_mach_ppc_rs64iii                  643
 #define bfd_mach_ppc_7400                    7400
 #define bfd_mach_ppc_e500                     500
-	bfd_arch_rs6000        = 22
-#define bfd_mach_rs6lk                       6000
-#define bfd_mach_rs6lk_rs1                   6001
-#define bfd_mach_rs6lk_rsc                   6002
-#define bfd_mach_rs6lk_rs2                   6003
+#define bfd_mach_ppc_vle                       84
+	bfd_arch_rs6000        = 24 /* 22 in binutils-2.18 */
+#define bfd_mach_rs6k                        6000
+#define bfd_mach_rs6k_rs1                    6001
+#define bfd_mach_rs6k_rsc                    6002
+#define bfd_mach_rs6k_rs2                    6003
 };
 
 enum bfd_flavour {

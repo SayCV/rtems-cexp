@@ -1,7 +1,7 @@
 #ifndef CEXP_TYPES_H
 #define CEXP_TYPES_H
 
-/* $Id: ctyps.h,v 1.19 2008/07/23 19:55:49 strauman Exp $ */
+/* $Id: ctyps.h,v 1.21 2013/01/10 01:50:05 strauman Exp $ */
 
 /* Interface to the Cexp C-type 'engine' */
 
@@ -12,14 +12,14 @@
  * This software (CEXP - C-expression interpreter and runtime
  * object loader/linker) was created by
  *
- *    Till Straumann <strauman@slac.stanford.edu>, 2002-2008,
- * 	  Stanford Linear Accelerator Center, Stanford University.
+ *     Till Straumann <strauman@slac.stanford.edu>, 2002-2008,
+ *     Stanford Linear Accelerator Center, Stanford University.
  *
  * Acknowledgement of sponsorship
  * ------------------------------
  * This software was produced by
- *     the Stanford Linear Accelerator Center, Stanford University,
- * 	   under Contract DE-AC03-76SFO0515 with the Department of Energy.
+ * the Stanford Linear Accelerator Center, Stanford University,
+ * under Contract DE-AC03-76SFO0515 with the Department of Energy.
  * 
  * Government disclaimer of liability
  * ----------------------------------
@@ -81,12 +81,15 @@ typedef enum {
     TUCharP     =2  | (sizeof(unsigned char)<<8) | CEXP_PTR_BIT,
     TUShort     =4  | (sizeof(unsigned short)<<8),
     TUShortP    =4  | (sizeof(unsigned short)<<8) | CEXP_PTR_BIT,
-    TULong      =6  | (sizeof(unsigned long)<<8),
-    TULongP     =6  | (sizeof(unsigned long)<<8) | CEXP_PTR_BIT,
-    TFloat      =8  | (sizeof(float)<<8),
-    TFloatP     =8  | (sizeof(float)<<8) | CEXP_PTR_BIT,
-    TDouble     =10 | (sizeof(double)<<8),
-    TDoubleP    =10 | (sizeof(double)<<8) | CEXP_PTR_BIT,
+    TUInt       =6  | (sizeof(unsigned int)<<8),
+    TUIntP      =6  | (sizeof(unsigned int)<<8) | CEXP_PTR_BIT,
+    TULong      =8  | (sizeof(unsigned long)<<8),
+    TULongP     =8  | (sizeof(unsigned long)<<8) | CEXP_PTR_BIT,
+    TFloat      =10 | (sizeof(float)<<8),
+    TFloatP     =10 | (sizeof(float)<<8) | CEXP_PTR_BIT,
+    TDouble     =12 | (sizeof(double)<<8),
+    TDoubleP    =12 | (sizeof(double)<<8) | CEXP_PTR_BIT,
+/* INTFIX */
     TFuncP      =TULong  | CEXP_FUN_BIT | CEXP_PTR_BIT,
     TDFuncP     =TDouble | CEXP_FUN_BIT | CEXP_PTR_BIT
 } CexpType;
@@ -124,6 +127,7 @@ typedef union  CexpValU_ {
 		void           *p;
 		unsigned char  c;
 		unsigned short s;
+		unsigned int   i;
 		unsigned long  l;
 		float          f;
 		double         d;
@@ -145,12 +149,12 @@ typedef struct CexpTypedAddrRec_ {
 /* NOTE: Order is important */
 typedef enum {
 		ONoop	=-1,
-		OLt	=5,
-		OLe	=6,
-		OEq	=7,
-		ONe	=8,
-		OGe	=9,
-		OGt	=10,
+		OLt		=5,
+		OLe		=6,
+		OEq		=7,
+		ONe		=8,
+		OGe		=9,
+		OGt		=10,
 		OAdd	=11,		/* comparisons above here */
 		OSub	=12,		/* pointers cannot do below this */
 		OMul	=13,
@@ -191,7 +195,7 @@ CexpType cexpTypeGuessFromSize(int size);
 #define CNV_FORCE	1
 /* cast a typed value to a new type, set CNV_FORCE if
  * you want to allow for losing information
- * (such as casting a TULong to a TUChar).
+ * (such as casting a TUInt to a TUChar).
  */
 const char *
 cexpTypeCast(CexpTypedVal v, CexpType t, int flags);

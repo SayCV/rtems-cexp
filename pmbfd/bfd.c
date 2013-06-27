@@ -1,4 +1,4 @@
-/* $Id: bfd.c,v 1.22 2009/03/12 04:42:13 strauman Exp $ */
+/* $Id: bfd.c,v 1.27 2013/01/23 15:51:47 strauman Exp $ */
 
 /* 
  * Authorship
@@ -47,9 +47,14 @@
 
 #include "pmbfdP.h"
 #include <errno.h>
+#include <assert.h>
 
 #ifdef HAVE_CONFIG_H
 #include <config.h>
+#endif
+
+#ifdef HAVE_STRINGS_H
+#include <strings.h>
 #endif
 
 static void
@@ -101,9 +106,15 @@ static const bfd_arch_info_type arches[] = {
 	{
 	arch_name: "elf64-x86_64",
 	arch:      bfd_arch_i386,
-	mach:      bfd_mach_x86_64,
 	elf_id:    EM_X86_64,
+	mach:      bfd_mach_x86_64,
 	},
+	{
+	arch_name: "elf32-sparc",
+	arch:      bfd_arch_sparc,
+	elf_id:    EM_SPARC,
+	mach:      bfd_mach_sparc,
+	}
 };
 
 static const bfd_arch_info_type myarch = {
@@ -132,6 +143,11 @@ static const bfd_arch_info_type myarch = {
 	arch:      bfd_arch_i386,
 	mach:      bfd_mach_x86_64,
 	elf_id:    EM_X86_64,
+#elif defined(__sparc__)
+	arch_name: "elf32-sparc",
+	arch:      bfd_arch_sparc,
+    mach:      bfd_mach_sparc,
+    elf_id:    EM_SPARC,
 #else
 #error "Undefined architecture"
 #endif
@@ -435,6 +451,15 @@ asection *
 elf_next_in_group(asection *sec)
 {
 	return shdr2sec(&thebfd, sec->grp_next, 0);
+}
+
+uint64_t
+elf_section_flags(asection *sec)
+{
+	if ( !sec->shdr )
+		return 0;
+
+	return (AUX_ELF64 & sec->aux_flags) ? sec->shdr->s64.sh_flags : sec->shdr->s32.sh_flags;
 }
 
 bfd*
@@ -985,6 +1010,7 @@ Elf32_Shdr        *shdr;
 
 		shdr = &buf;
 	} else {
+		sec->aux_flags |= AUX_ELF64;
 		shdr = &eshdr->s64;
 	}
 #else
@@ -1027,6 +1053,7 @@ Elf32_Shdr        *shdr;
 		case SHT_NULL:	return;
 			
 		/* These should not be in static executables */
+		case SHT_GNU_HASH:
 		case SHT_GNU_VERSION:
 		case SHT_GNU_VERSION_R:
 
@@ -1129,7 +1156,7 @@ Elf32_Shdr        *shdr;
 								sym_type = ELF64_ST_TYPE(sym.t64.st_info);
 							}
 							else
-#else
+#endif
 							{
 								if ( pmelf_getsym32(abfd->s, &sym.t32) ) {
 									bfd_perror("unable to read group signature symbol");
@@ -1139,7 +1166,6 @@ Elf32_Shdr        *shdr;
 								st_name = sym.t32.st_name;
 								sym_type = ELF32_ST_TYPE(sym.t32.st_info);
 							}
-#endif
 
 							/* apparently, ld -r puts the group name into the section name
 							 * and the symbol linked by the group header's sh_link
@@ -1434,7 +1460,8 @@ bfd_scan_arch(const char *str)
 bfd_boolean
 bfd_set_section_alignment(bfd *abfd, asection *sect, unsigned int val)
 {
-	sect->align_power = val;
+    assert(val < 256);
+	sect->align_power = (uint8_t)val;
 	return BFD_TRUE;
 }
 

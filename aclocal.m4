@@ -1,7 +1,8 @@
-# generated automatically by aclocal 1.10 -*- Autoconf -*-
+# generated automatically by aclocal 1.11.6 -*- Autoconf -*-
 
 # Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-# 2005, 2006  Free Software Foundation, Inc.
+# 2005, 2006, 2007, 2008, 2009, 2010, 2011 Free Software Foundation,
+# Inc.
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
@@ -11,16 +12,22 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
 
-m4_if(m4_PACKAGE_VERSION, [2.62],,
-[m4_fatal([this file was generated for autoconf 2.62.
-You have another version of autoconf.  If you want to use that,
-you should regenerate the build system entirely.], [63])])
+m4_ifndef([AC_AUTOCONF_VERSION],
+  [m4_copy([m4_PACKAGE_VERSION], [AC_AUTOCONF_VERSION])])dnl
+m4_if(m4_defn([AC_AUTOCONF_VERSION]), [2.69],,
+[m4_warning([this file was generated for autoconf 2.69.
+You have another version of autoconf.  It may work, but is not guaranteed to.
+If you have problems, you may need to regenerate the build system entirely.
+To do so, use the procedure documented by the package, typically `autoreconf'.])])
 
-# Copyright (C) 2002, 2003, 2005, 2006  Free Software Foundation, Inc.
+# Copyright (C) 2002, 2003, 2005, 2006, 2007, 2008, 2011 Free Software
+# Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
+
+# serial 1
 
 # AM_AUTOMAKE_VERSION(VERSION)
 # ----------------------------
@@ -28,10 +35,10 @@ you should regenerate the build system entirely.], [63])])
 # generated from the m4 files accompanying Automake X.Y.
 # (This private macro should not be called outside this file.)
 AC_DEFUN([AM_AUTOMAKE_VERSION],
-[am__api_version='1.10'
+[am__api_version='1.11'
 dnl Some users find AM_AUTOMAKE_VERSION and mistake it for a way to
 dnl require some minimum version.  Point them to the right macro.
-m4_if([$1], [1.10], [],
+m4_if([$1], [1.11.6], [],
       [AC_FATAL([Do not call $0, use AM_INIT_AUTOMAKE([$1]).])])dnl
 ])
 
@@ -45,10 +52,12 @@ m4_define([_AM_AUTOCONF_VERSION], [])
 # AM_SET_CURRENT_AUTOMAKE_VERSION
 # -------------------------------
 # Call AM_AUTOMAKE_VERSION and AM_AUTOMAKE_VERSION so they can be traced.
-# This function is AC_REQUIREd by AC_INIT_AUTOMAKE.
+# This function is AC_REQUIREd by AM_INIT_AUTOMAKE.
 AC_DEFUN([AM_SET_CURRENT_AUTOMAKE_VERSION],
-[AM_AUTOMAKE_VERSION([1.10])dnl
-_AM_AUTOCONF_VERSION(m4_PACKAGE_VERSION)])
+[AM_AUTOMAKE_VERSION([1.11.6])dnl
+m4_ifndef([AC_AUTOCONF_VERSION],
+  [m4_copy([m4_PACKAGE_VERSION], [AC_AUTOCONF_VERSION])])dnl
+_AM_AUTOCONF_VERSION(m4_defn([AC_AUTOCONF_VERSION]))])
 
 # Figure out how to run the assembler.                      -*- Autoconf -*-
 
@@ -74,11 +83,13 @@ _AM_IF_OPTION([no-dependencies],, [_AM_DEPENDENCIES([CCAS])])dnl
 
 # AM_AUX_DIR_EXPAND                                         -*- Autoconf -*-
 
-# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
+# Copyright (C) 2001, 2003, 2005, 2011 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
+
+# serial 1
 
 # For projects using AC_CONFIG_AUX_DIR([foo]), Autoconf sets
 # $ac_aux_dir to `$srcdir/foo'.  In other projects, it is set to
@@ -127,14 +138,14 @@ am_aux_dir=`cd $ac_aux_dir && pwd`
 
 # AM_CONDITIONAL                                            -*- Autoconf -*-
 
-# Copyright (C) 1997, 2000, 2001, 2003, 2004, 2005, 2006
+# Copyright (C) 1997, 2000, 2001, 2003, 2004, 2005, 2006, 2008
 # Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 8
+# serial 9
 
 # AM_CONDITIONAL(NAME, SHELL-CONDITION)
 # -------------------------------------
@@ -147,6 +158,7 @@ AC_SUBST([$1_TRUE])dnl
 AC_SUBST([$1_FALSE])dnl
 _AM_SUBST_NOTMAKE([$1_TRUE])dnl
 _AM_SUBST_NOTMAKE([$1_FALSE])dnl
+m4_define([_AM_COND_VALUE_$1], [$2])dnl
 if $2; then
   $1_TRUE=
   $1_FALSE='#'
@@ -160,14 +172,14 @@ AC_CONFIG_COMMANDS_PRE(
 Usually this means the macro was only invoked conditionally.]])
 fi])])
 
-# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006
-# Free Software Foundation, Inc.
+# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2006, 2009,
+# 2010, 2011 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 9
+# serial 12
 
 # There are a few dirty hacks below to avoid letting `AC_PROG_CC' be
 # written in clear, in which case automake, when reading aclocal.m4,
@@ -207,6 +219,7 @@ AC_CACHE_CHECK([dependency style of $depcc],
   # instance it was reported that on HP-UX the gcc test will end up
   # making a dummy file named `D' -- because `-MD' means `put the output
   # in D'.
+  rm -rf conftest.dir
   mkdir conftest.dir
   # Copy depcomp to subdir because otherwise we won't find it if we're
   # using a relative directory.
@@ -224,6 +237,16 @@ AC_CACHE_CHECK([dependency style of $depcc],
   if test "$am_compiler_list" = ""; then
      am_compiler_list=`sed -n ['s/^#*\([a-zA-Z0-9]*\))$/\1/p'] < ./depcomp`
   fi
+  am__universal=false
+  m4_case([$1], [CC],
+    [case " $depcc " in #(
+     *\ -arch\ *\ -arch\ *) am__universal=true ;;
+     esac],
+    [CXX],
+    [case " $depcc " in #(
+     *\ -arch\ *\ -arch\ *) am__universal=true ;;
+     esac])
+
   for depmode in $am_compiler_list; do
     # Setup a source with many dependencies, because some compilers
     # like to wrap large dependency lists on column 80 (with \), and
@@ -241,7 +264,17 @@ AC_CACHE_CHECK([dependency style of $depcc],
     done
     echo "${am__include} ${am__quote}sub/conftest.Po${am__quote}" > confmf
 
+    # We check with `-c' and `-o' for the sake of the "dashmstdout"
+    # mode.  It turns out that the SunPro C++ compiler does not properly
+    # handle `-M -o', and we need to detect this.  Also, some Intel
+    # versions had trouble with output in subdirs
+    am__obj=sub/conftest.${OBJEXT-o}
+    am__minus_obj="-o $am__obj"
     case $depmode in
+    gcc)
+      # This depmode causes a compiler race in universal mode.
+      test "$am__universal" = false || continue
+      ;;
     nosideeffect)
       # after this tag, mechanisms are not by side-effect, so they'll
       # only be used when explicitly requested
@@ -251,19 +284,23 @@ AC_CACHE_CHECK([dependency style of $depcc],
 	break
       fi
       ;;
+    msvc7 | msvc7msys | msvisualcpp | msvcmsys)
+      # This compiler won't grok `-c -o', but also, the minuso test has
+      # not run yet.  These depmodes are late enough in the game, and
+      # so weak that their functioning should not be impacted.
+      am__obj=conftest.${OBJEXT-o}
+      am__minus_obj=
+      ;;
     none) break ;;
     esac
-    # We check with `-c' and `-o' for the sake of the "dashmstdout"
-    # mode.  It turns out that the SunPro C++ compiler does not properly
-    # handle `-M -o', and we need to detect this.
     if depmode=$depmode \
-       source=sub/conftest.c object=sub/conftest.${OBJEXT-o} \
+       source=sub/conftest.c object=$am__obj \
        depfile=sub/conftest.Po tmpdepfile=sub/conftest.TPo \
-       $SHELL ./depcomp $depcc -c -o sub/conftest.${OBJEXT-o} sub/conftest.c \
+       $SHELL ./depcomp $depcc -c $am__minus_obj sub/conftest.c \
          >/dev/null 2>conftest.err &&
        grep sub/conftst1.h sub/conftest.Po > /dev/null 2>&1 &&
        grep sub/conftst6.h sub/conftest.Po > /dev/null 2>&1 &&
-       grep sub/conftest.${OBJEXT-o} sub/conftest.Po > /dev/null 2>&1 &&
+       grep $am__obj sub/conftest.Po > /dev/null 2>&1 &&
        ${MAKE-make} -s -f confmf > /dev/null 2>&1; then
       # icc doesn't choke on unknown options, it will just issue warnings
       # or remarks (even with -Werror).  So we grep stderr for any message
@@ -312,65 +349,79 @@ AC_DEFUN([AM_DEP_TRACK],
 if test "x$enable_dependency_tracking" != xno; then
   am_depcomp="$ac_aux_dir/depcomp"
   AMDEPBACKSLASH='\'
+  am__nodep='_no'
 fi
 AM_CONDITIONAL([AMDEP], [test "x$enable_dependency_tracking" != xno])
 AC_SUBST([AMDEPBACKSLASH])dnl
 _AM_SUBST_NOTMAKE([AMDEPBACKSLASH])dnl
+AC_SUBST([am__nodep])dnl
+_AM_SUBST_NOTMAKE([am__nodep])dnl
 ])
 
 # Generate code to set up dependency tracking.              -*- Autoconf -*-
 
-# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005
+# Copyright (C) 1999, 2000, 2001, 2002, 2003, 2004, 2005, 2008
 # Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-#serial 3
+#serial 5
 
 # _AM_OUTPUT_DEPENDENCY_COMMANDS
 # ------------------------------
 AC_DEFUN([_AM_OUTPUT_DEPENDENCY_COMMANDS],
-[for mf in $CONFIG_FILES; do
-  # Strip MF so we end up with the name of the file.
-  mf=`echo "$mf" | sed -e 's/:.*$//'`
-  # Check whether this is an Automake generated Makefile or not.
-  # We used to match only the files named `Makefile.in', but
-  # some people rename them; so instead we look at the file content.
-  # Grep'ing the first line is not enough: some people post-process
-  # each Makefile.in and add a new line on top of each file to say so.
-  # Grep'ing the whole file is not good either: AIX grep has a line
-  # limit of 2048, but all sed's we know have understand at least 4000.
-  if sed 10q "$mf" | grep '^#.*generated by automake' > /dev/null 2>&1; then
-    dirpart=`AS_DIRNAME("$mf")`
-  else
-    continue
-  fi
-  # Extract the definition of DEPDIR, am__include, and am__quote
-  # from the Makefile without running `make'.
-  DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
-  test -z "$DEPDIR" && continue
-  am__include=`sed -n 's/^am__include = //p' < "$mf"`
-  test -z "am__include" && continue
-  am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
-  # When using ansi2knr, U may be empty or an underscore; expand it
-  U=`sed -n 's/^U = //p' < "$mf"`
-  # Find all dependency output files, they are included files with
-  # $(DEPDIR) in their names.  We invoke sed twice because it is the
-  # simplest approach to changing $(DEPDIR) to its actual value in the
-  # expansion.
-  for file in `sed -n "
-    s/^$am__include $am__quote\(.*(DEPDIR).*\)$am__quote"'$/\1/p' <"$mf" | \
-       sed -e 's/\$(DEPDIR)/'"$DEPDIR"'/g' -e 's/\$U/'"$U"'/g'`; do
-    # Make sure the directory exists.
-    test -f "$dirpart/$file" && continue
-    fdir=`AS_DIRNAME(["$file"])`
-    AS_MKDIR_P([$dirpart/$fdir])
-    # echo "creating $dirpart/$file"
-    echo '# dummy' > "$dirpart/$file"
+[{
+  # Autoconf 2.62 quotes --file arguments for eval, but not when files
+  # are listed without --file.  Let's play safe and only enable the eval
+  # if we detect the quoting.
+  case $CONFIG_FILES in
+  *\'*) eval set x "$CONFIG_FILES" ;;
+  *)   set x $CONFIG_FILES ;;
+  esac
+  shift
+  for mf
+  do
+    # Strip MF so we end up with the name of the file.
+    mf=`echo "$mf" | sed -e 's/:.*$//'`
+    # Check whether this is an Automake generated Makefile or not.
+    # We used to match only the files named `Makefile.in', but
+    # some people rename them; so instead we look at the file content.
+    # Grep'ing the first line is not enough: some people post-process
+    # each Makefile.in and add a new line on top of each file to say so.
+    # Grep'ing the whole file is not good either: AIX grep has a line
+    # limit of 2048, but all sed's we know have understand at least 4000.
+    if sed -n 's,^#.*generated by automake.*,X,p' "$mf" | grep X >/dev/null 2>&1; then
+      dirpart=`AS_DIRNAME("$mf")`
+    else
+      continue
+    fi
+    # Extract the definition of DEPDIR, am__include, and am__quote
+    # from the Makefile without running `make'.
+    DEPDIR=`sed -n 's/^DEPDIR = //p' < "$mf"`
+    test -z "$DEPDIR" && continue
+    am__include=`sed -n 's/^am__include = //p' < "$mf"`
+    test -z "am__include" && continue
+    am__quote=`sed -n 's/^am__quote = //p' < "$mf"`
+    # When using ansi2knr, U may be empty or an underscore; expand it
+    U=`sed -n 's/^U = //p' < "$mf"`
+    # Find all dependency output files, they are included files with
+    # $(DEPDIR) in their names.  We invoke sed twice because it is the
+    # simplest approach to changing $(DEPDIR) to its actual value in the
+    # expansion.
+    for file in `sed -n "
+      s/^$am__include $am__quote\(.*(DEPDIR).*\)$am__quote"'$/\1/p' <"$mf" | \
+	 sed -e 's/\$(DEPDIR)/'"$DEPDIR"'/g' -e 's/\$U/'"$U"'/g'`; do
+      # Make sure the directory exists.
+      test -f "$dirpart/$file" && continue
+      fdir=`AS_DIRNAME(["$file"])`
+      AS_MKDIR_P([$dirpart/$fdir])
+      # echo "creating $dirpart/$file"
+      echo '# dummy' > "$dirpart/$file"
+    done
   done
-done
+}
 ])# _AM_OUTPUT_DEPENDENCY_COMMANDS
 
 
@@ -402,13 +453,13 @@ AU_DEFUN([AM_CONFIG_HEADER], [AC_CONFIG_HEADERS($@)])
 # Do all the work for Automake.                             -*- Autoconf -*-
 
 # Copyright (C) 1996, 1997, 1998, 1999, 2000, 2001, 2002, 2003, 2004,
-# 2005, 2006 Free Software Foundation, Inc.
+# 2005, 2006, 2008, 2009 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 12
+# serial 16
 
 # This macro actually does too much.  Some checks are only needed if
 # your package does certain things.  But this isn't really a big deal.
@@ -425,7 +476,7 @@ AU_DEFUN([AM_CONFIG_HEADER], [AC_CONFIG_HEADERS($@)])
 # arguments mandatory, and then we can depend on a new Autoconf
 # release and drop the old call support.
 AC_DEFUN([AM_INIT_AUTOMAKE],
-[AC_PREREQ([2.60])dnl
+[AC_PREREQ([2.62])dnl
 dnl Autoconf wants to disallow AM_ names.  We explicitly allow
 dnl the ones we care about.
 m4_pattern_allow([^AM_[A-Z]+FLAGS$])dnl
@@ -476,8 +527,8 @@ AM_MISSING_PROG(AUTOCONF, autoconf)
 AM_MISSING_PROG(AUTOMAKE, automake-${am__api_version})
 AM_MISSING_PROG(AUTOHEADER, autoheader)
 AM_MISSING_PROG(MAKEINFO, makeinfo)
-AM_PROG_INSTALL_SH
-AM_PROG_INSTALL_STRIP
+AC_REQUIRE([AM_PROG_INSTALL_SH])dnl
+AC_REQUIRE([AM_PROG_INSTALL_STRIP])dnl
 AC_REQUIRE([AM_PROG_MKDIR_P])dnl
 # We need awk for the "check" target.  The system "awk" is bad on
 # some platforms.
@@ -485,23 +536,36 @@ AC_REQUIRE([AC_PROG_AWK])dnl
 AC_REQUIRE([AC_PROG_MAKE_SET])dnl
 AC_REQUIRE([AM_SET_LEADING_DOT])dnl
 _AM_IF_OPTION([tar-ustar], [_AM_PROG_TAR([ustar])],
-              [_AM_IF_OPTION([tar-pax], [_AM_PROG_TAR([pax])],
-	      		     [_AM_PROG_TAR([v7])])])
+	      [_AM_IF_OPTION([tar-pax], [_AM_PROG_TAR([pax])],
+			     [_AM_PROG_TAR([v7])])])
 _AM_IF_OPTION([no-dependencies],,
 [AC_PROVIDE_IFELSE([AC_PROG_CC],
-                  [_AM_DEPENDENCIES(CC)],
-                  [define([AC_PROG_CC],
-                          defn([AC_PROG_CC])[_AM_DEPENDENCIES(CC)])])dnl
+		  [_AM_DEPENDENCIES(CC)],
+		  [define([AC_PROG_CC],
+			  defn([AC_PROG_CC])[_AM_DEPENDENCIES(CC)])])dnl
 AC_PROVIDE_IFELSE([AC_PROG_CXX],
-                  [_AM_DEPENDENCIES(CXX)],
-                  [define([AC_PROG_CXX],
-                          defn([AC_PROG_CXX])[_AM_DEPENDENCIES(CXX)])])dnl
+		  [_AM_DEPENDENCIES(CXX)],
+		  [define([AC_PROG_CXX],
+			  defn([AC_PROG_CXX])[_AM_DEPENDENCIES(CXX)])])dnl
 AC_PROVIDE_IFELSE([AC_PROG_OBJC],
-                  [_AM_DEPENDENCIES(OBJC)],
-                  [define([AC_PROG_OBJC],
-                          defn([AC_PROG_OBJC])[_AM_DEPENDENCIES(OBJC)])])dnl
+		  [_AM_DEPENDENCIES(OBJC)],
+		  [define([AC_PROG_OBJC],
+			  defn([AC_PROG_OBJC])[_AM_DEPENDENCIES(OBJC)])])dnl
 ])
+_AM_IF_OPTION([silent-rules], [AC_REQUIRE([AM_SILENT_RULES])])dnl
+dnl The `parallel-tests' driver may need to know about EXEEXT, so add the
+dnl `am__EXEEXT' conditional if _AM_COMPILER_EXEEXT was seen.  This macro
+dnl is hooked onto _AC_COMPILER_EXEEXT early, see below.
+AC_CONFIG_COMMANDS_PRE(dnl
+[m4_provide_if([_AM_COMPILER_EXEEXT],
+  [AM_CONDITIONAL([am__EXEEXT], [test -n "$EXEEXT"])])])dnl
 ])
+
+dnl Hook into `_AC_COMPILER_EXEEXT' early to learn its expansion.  Do not
+dnl add the conditional right here, as _AC_COMPILER_EXEEXT may be further
+dnl mangled by Autoconf and run in a shell conditional statement.
+m4_define([_AC_COMPILER_EXEEXT],
+m4_defn([_AC_COMPILER_EXEEXT])[m4_provide([_AM_COMPILER_EXEEXT])])
 
 
 # When config.status generates a header, we must update the stamp-h file.
@@ -513,29 +577,40 @@ AC_PROVIDE_IFELSE([AC_PROG_OBJC],
 # our stamp files there.
 AC_DEFUN([_AC_AM_CONFIG_HEADER_HOOK],
 [# Compute $1's index in $config_headers.
+_am_arg=$1
 _am_stamp_count=1
 for _am_header in $config_headers :; do
   case $_am_header in
-    $1 | $1:* )
+    $_am_arg | $_am_arg:* )
       break ;;
     * )
       _am_stamp_count=`expr $_am_stamp_count + 1` ;;
   esac
 done
-echo "timestamp for $1" >`AS_DIRNAME([$1])`/stamp-h[]$_am_stamp_count])
+echo "timestamp for $_am_arg" >`AS_DIRNAME(["$_am_arg"])`/stamp-h[]$_am_stamp_count])
 
-# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
+# Copyright (C) 2001, 2003, 2005, 2008, 2011 Free Software Foundation,
+# Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
+
+# serial 1
 
 # AM_PROG_INSTALL_SH
 # ------------------
 # Define $install_sh.
 AC_DEFUN([AM_PROG_INSTALL_SH],
 [AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
-install_sh=${install_sh-"\$(SHELL) $am_aux_dir/install-sh"}
+if test x"${install_sh}" != xset; then
+  case $am_aux_dir in
+  *\ * | *\	*)
+    install_sh="\${SHELL} '$am_aux_dir/install-sh'" ;;
+  *)
+    install_sh="\${SHELL} $am_aux_dir/install-sh"
+  esac
+fi
 AC_SUBST(install_sh)])
 
 # Copyright (C) 2003, 2005  Free Software Foundation, Inc.
@@ -562,27 +637,38 @@ AC_SUBST([am__leading_dot])])
 # Add --enable-maintainer-mode option to configure.         -*- Autoconf -*-
 # From Jim Meyering
 
-# Copyright (C) 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2005
-# Free Software Foundation, Inc.
+# Copyright (C) 1996, 1998, 2000, 2001, 2002, 2003, 2004, 2005, 2008,
+# 2011 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 4
+# serial 5
 
+# AM_MAINTAINER_MODE([DEFAULT-MODE])
+# ----------------------------------
+# Control maintainer-specific portions of Makefiles.
+# Default is to disable them, unless `enable' is passed literally.
+# For symmetry, `disable' may be passed as well.  Anyway, the user
+# can override the default with the --enable/--disable switch.
 AC_DEFUN([AM_MAINTAINER_MODE],
-[AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
-  dnl maintainer-mode is disabled by default
-  AC_ARG_ENABLE(maintainer-mode,
-[  --enable-maintainer-mode  enable make rules and dependencies not useful
+[m4_case(m4_default([$1], [disable]),
+       [enable], [m4_define([am_maintainer_other], [disable])],
+       [disable], [m4_define([am_maintainer_other], [enable])],
+       [m4_define([am_maintainer_other], [enable])
+        m4_warn([syntax], [unexpected argument to AM@&t@_MAINTAINER_MODE: $1])])
+AC_MSG_CHECKING([whether to enable maintainer-specific portions of Makefiles])
+  dnl maintainer-mode's default is 'disable' unless 'enable' is passed
+  AC_ARG_ENABLE([maintainer-mode],
+[  --][am_maintainer_other][-maintainer-mode  am_maintainer_other make rules and dependencies not useful
 			  (and sometimes confusing) to the casual installer],
-      USE_MAINTAINER_MODE=$enableval,
-      USE_MAINTAINER_MODE=no)
+      [USE_MAINTAINER_MODE=$enableval],
+      [USE_MAINTAINER_MODE=]m4_if(am_maintainer_other, [enable], [no], [yes]))
   AC_MSG_RESULT([$USE_MAINTAINER_MODE])
-  AM_CONDITIONAL(MAINTAINER_MODE, [test $USE_MAINTAINER_MODE = yes])
+  AM_CONDITIONAL([MAINTAINER_MODE], [test $USE_MAINTAINER_MODE = yes])
   MAINT=$MAINTAINER_MODE_TRUE
-  AC_SUBST(MAINT)dnl
+  AC_SUBST([MAINT])dnl
 ]
 )
 
@@ -590,13 +676,13 @@ AU_DEFUN([jm_MAINTAINER_MODE], [AM_MAINTAINER_MODE])
 
 # Check to see how 'make' treats includes.	            -*- Autoconf -*-
 
-# Copyright (C) 2001, 2002, 2003, 2005  Free Software Foundation, Inc.
+# Copyright (C) 2001, 2002, 2003, 2005, 2009  Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 3
+# serial 4
 
 # AM_MAKE_INCLUDE()
 # -----------------
@@ -605,7 +691,7 @@ AC_DEFUN([AM_MAKE_INCLUDE],
 [am_make=${MAKE-make}
 cat > confinc << 'END'
 am__doit:
-	@echo done
+	@echo this is the am__doit target
 .PHONY: am__doit
 END
 # If we don't find an include directive, just comment out the code.
@@ -615,24 +701,24 @@ am__quote=
 _am_result=none
 # First try GNU make style include.
 echo "include confinc" > confmf
-# We grep out `Entering directory' and `Leaving directory'
-# messages which can occur if `w' ends up in MAKEFLAGS.
-# In particular we don't look at `^make:' because GNU make might
-# be invoked under some other name (usually "gmake"), in which
-# case it prints its new name instead of `make'.
-if test "`$am_make -s -f confmf 2> /dev/null | grep -v 'ing directory'`" = "done"; then
-   am__include=include
-   am__quote=
-   _am_result=GNU
-fi
+# Ignore all kinds of additional output from `make'.
+case `$am_make -s -f confmf 2> /dev/null` in #(
+*the\ am__doit\ target*)
+  am__include=include
+  am__quote=
+  _am_result=GNU
+  ;;
+esac
 # Now try BSD make style include.
 if test "$am__include" = "#"; then
    echo '.include "confinc"' > confmf
-   if test "`$am_make -s -f confmf 2> /dev/null`" = "done"; then
-      am__include=.include
-      am__quote="\""
-      _am_result=BSD
-   fi
+   case `$am_make -s -f confmf 2> /dev/null` in #(
+   *the\ am__doit\ target*)
+     am__include=.include
+     am__quote="\""
+     _am_result=BSD
+     ;;
+   esac
 fi
 AC_SUBST([am__include])
 AC_SUBST([am__quote])
@@ -642,14 +728,14 @@ rm -f confinc confmf
 
 # Fake the existence of programs that GNU maintainers use.  -*- Autoconf -*-
 
-# Copyright (C) 1997, 1999, 2000, 2001, 2003, 2004, 2005
+# Copyright (C) 1997, 1999, 2000, 2001, 2003, 2004, 2005, 2008
 # Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 5
+# serial 6
 
 # AM_MISSING_PROG(NAME, PROGRAM)
 # ------------------------------
@@ -666,7 +752,14 @@ AC_SUBST($1)])
 AC_DEFUN([AM_MISSING_HAS_RUN],
 [AC_REQUIRE([AM_AUX_DIR_EXPAND])dnl
 AC_REQUIRE_AUX_FILE([missing])dnl
-test x"${MISSING+set}" = xset || MISSING="\${SHELL} $am_aux_dir/missing"
+if test x"${MISSING+set}" != xset; then
+  case $am_aux_dir in
+  *\ * | *\	*)
+    MISSING="\${SHELL} \"$am_aux_dir/missing\"" ;;
+  *)
+    MISSING="\${SHELL} $am_aux_dir/missing" ;;
+  esac
+fi
 # Use eval to expand $SHELL
 if eval "$MISSING --run true"; then
   am_missing_run="$MISSING --run "
@@ -676,11 +769,14 @@ else
 fi
 ])
 
-# Copyright (C) 2003, 2004, 2005, 2006  Free Software Foundation, Inc.
+# Copyright (C) 2003, 2004, 2005, 2006, 2011 Free Software Foundation,
+# Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
+
+# serial 1
 
 # AM_PROG_MKDIR_P
 # ---------------
@@ -704,13 +800,14 @@ esac
 
 # Helper functions for option handling.                     -*- Autoconf -*-
 
-# Copyright (C) 2001, 2002, 2003, 2005  Free Software Foundation, Inc.
+# Copyright (C) 2001, 2002, 2003, 2005, 2008, 2010 Free Software
+# Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 3
+# serial 5
 
 # _AM_MANGLE_OPTION(NAME)
 # -----------------------
@@ -718,16 +815,16 @@ AC_DEFUN([_AM_MANGLE_OPTION],
 [[_AM_OPTION_]m4_bpatsubst($1, [[^a-zA-Z0-9_]], [_])])
 
 # _AM_SET_OPTION(NAME)
-# ------------------------------
+# --------------------
 # Set option NAME.  Presently that only means defining a flag for this option.
 AC_DEFUN([_AM_SET_OPTION],
 [m4_define(_AM_MANGLE_OPTION([$1]), 1)])
 
 # _AM_SET_OPTIONS(OPTIONS)
-# ----------------------------------
+# ------------------------
 # OPTIONS is a space-separated list of Automake options.
 AC_DEFUN([_AM_SET_OPTIONS],
-[AC_FOREACH([_AM_Option], [$1], [_AM_SET_OPTION(_AM_Option)])])
+[m4_foreach_w([_AM_Option], [$1], [_AM_SET_OPTION(_AM_Option)])])
 
 # _AM_IF_OPTION(OPTION, IF-SET, [IF-NOT-SET])
 # -------------------------------------------
@@ -737,14 +834,14 @@ AC_DEFUN([_AM_IF_OPTION],
 
 # Check to make sure that the build environment is sane.    -*- Autoconf -*-
 
-# Copyright (C) 1996, 1997, 2000, 2001, 2003, 2005
+# Copyright (C) 1996, 1997, 2000, 2001, 2003, 2005, 2008
 # Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
-# serial 4
+# serial 5
 
 # AM_SANITY_CHECK
 # ---------------
@@ -753,16 +850,29 @@ AC_DEFUN([AM_SANITY_CHECK],
 # Just in case
 sleep 1
 echo timestamp > conftest.file
+# Reject unsafe characters in $srcdir or the absolute working directory
+# name.  Accept space and tab only in the latter.
+am_lf='
+'
+case `pwd` in
+  *[[\\\"\#\$\&\'\`$am_lf]]*)
+    AC_MSG_ERROR([unsafe absolute working directory name]);;
+esac
+case $srcdir in
+  *[[\\\"\#\$\&\'\`$am_lf\ \	]]*)
+    AC_MSG_ERROR([unsafe srcdir value: `$srcdir']);;
+esac
+
 # Do `set' in a subshell so we don't clobber the current shell's
 # arguments.  Must try -L first in case configure is actually a
 # symlink; some systems play weird games with the mod time of symlinks
 # (eg FreeBSD returns the mod time of the symlink's containing
 # directory).
 if (
-   set X `ls -Lt $srcdir/configure conftest.file 2> /dev/null`
+   set X `ls -Lt "$srcdir/configure" conftest.file 2> /dev/null`
    if test "$[*]" = "X"; then
       # -L didn't work.
-      set X `ls -t $srcdir/configure conftest.file`
+      set X `ls -t "$srcdir/configure" conftest.file`
    fi
    rm -f conftest.file
    if test "$[*]" != "X $srcdir/configure conftest.file" \
@@ -787,11 +897,13 @@ Check your system clock])
 fi
 AC_MSG_RESULT(yes)])
 
-# Copyright (C) 2001, 2003, 2005  Free Software Foundation, Inc.
+# Copyright (C) 2001, 2003, 2005, 2011 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
+
+# serial 1
 
 # AM_PROG_INSTALL_STRIP
 # ---------------------
@@ -815,21 +927,28 @@ fi
 INSTALL_STRIP_PROGRAM="\$(install_sh) -c -s"
 AC_SUBST([INSTALL_STRIP_PROGRAM])])
 
-# Copyright (C) 2006  Free Software Foundation, Inc.
+# Copyright (C) 2006, 2008, 2010 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
 # with or without modifications, as long as this notice is preserved.
 
+# serial 3
+
 # _AM_SUBST_NOTMAKE(VARIABLE)
 # ---------------------------
-# Prevent Automake from outputing VARIABLE = @VARIABLE@ in Makefile.in.
+# Prevent Automake from outputting VARIABLE = @VARIABLE@ in Makefile.in.
 # This macro is traced by Automake.
 AC_DEFUN([_AM_SUBST_NOTMAKE])
 
+# AM_SUBST_NOTMAKE(VARIABLE)
+# --------------------------
+# Public sister of _AM_SUBST_NOTMAKE.
+AC_DEFUN([AM_SUBST_NOTMAKE], [_AM_SUBST_NOTMAKE($@)])
+
 # Check how to create a tarball.                            -*- Autoconf -*-
 
-# Copyright (C) 2004, 2005  Free Software Foundation, Inc.
+# Copyright (C) 2004, 2005, 2012 Free Software Foundation, Inc.
 #
 # This file is free software; the Free Software Foundation
 # gives unlimited permission to copy and/or distribute it,
@@ -851,10 +970,11 @@ AC_DEFUN([_AM_SUBST_NOTMAKE])
 # a tarball read from stdin.
 #     $(am__untar) < result.tar
 AC_DEFUN([_AM_PROG_TAR],
-[# Always define AMTAR for backward compatibility.
-AM_MISSING_PROG([AMTAR], [tar])
+[# Always define AMTAR for backward compatibility.  Yes, it's still used
+# in the wild :-(  We should find a proper way to deprecate it ...
+AC_SUBST([AMTAR], ['$${TAR-tar}'])
 m4_if([$1], [v7],
-     [am__tar='${AMTAR} chof - "$$tardir"'; am__untar='${AMTAR} xf -'],
+     [am__tar='$${TAR-tar} chof - "$$tardir"' am__untar='$${TAR-tar} xf -'],
      [m4_case([$1], [ustar],, [pax],,
               [m4_fatal([Unknown tar format])])
 AC_MSG_CHECKING([how to create a $1 tar archive])
@@ -1000,7 +1120,11 @@ with_target_subdir="$with_target_subdir"
 ac_configure_args="${multilib_arg} `echo ${ac_configure_args} | sed -e 's/[$]/\\\\$/g'`"
 multi_basedir="$multi_basedir"
 CONFIG_SHELL=${CONFIG_SHELL-/bin/sh}
-CC="$CC"])])dnl
+CC="$CC"
+CXX="$CXX"
+F77="$F77"
+GCJ="$GCJ"
+GFORTRAN="$GFORTRAN"])])dnl
 
 # TILLAM_MULTISUB_INSTALLDIR
 #
@@ -1023,6 +1147,29 @@ AC_SUBST(libdir,[${libdir}${the_multisubdir}])])dnl
 
 
 ])dnl
+
+# Certain BSPs are just variants. This macro sets
+# the RTEMS_BSP_CLASS variable to the name of a 'base' BSP.
+# Note that this matches mostly what RTEMS_BSP_FAMILY used to
+# be...
+#
+AC_DEFUN([TILLAC_RTEMS_BSP_CLASS],
+	[case "${rtems_bsp}" in
+		pc?86*)
+			RTEMS_BSP_CLASS=pc386
+		;;
+		psim*)
+			RTEMS_BSP_CLASS=psim
+		;;
+		mcp750|mvme2100|mvme2307|mtx603e)
+			RTEMS_BSP_CLASS=motorola_powerpc
+		;;
+		*)
+			RTEMS_BSP_CLASS="${rtems_bsp}"
+		;;
+	esac
+	AC_SUBST([RTEMS_BSP_CLASS])]dnl
+)
 
 # Assemble a list of BSPs in 'enable_rtemsbsp'
 #
@@ -1117,7 +1264,9 @@ AC_DEFUN([TILLAC_RTEMS_CHECK_TOP],
 #
 #  - if user says nothing then
 #
-#      exec-prefix -> ${prefix}/target/ssrlApps/<cpu>/<bsp>/
+#      (package_subdir defaults to: target/${PACKAGE_NAME})
+#
+#      exec-prefix -> ${prefix}/${package_subdir}/<cpu>/<bsp>/
 #      includedir  -> ${exec-prefix}/include
 #    
 AC_DEFUN([TILLAC_RTEMS_FIXUP_PREFIXES],
@@ -1140,7 +1289,7 @@ if test "${enable_std_rtems_installdirs}" = "yes" ; then
 else
 # should be correct also for multilibbed build (rtems_bsp empty)
 	if test "${exec_prefix}" = "NONE" ; then
-		exec_prefix='${prefix}/target/ssrlApps/${host_cpu}-${host_os}/'${enable_rtemsbsp}/
+		exec_prefix='${prefix}/${package_subdir}/${host_cpu}-${host_os}/'${enable_rtemsbsp}/
 		ac_configure_args="${ac_configure_args} --exec-prefix='${exec_prefix}'"
 	fi
 	# Unfortunately we have no way to check if includedir was set by the user
@@ -1190,7 +1339,6 @@ AC_DEFUN([TILLAC_RTEMS_HOSTOS_IS_RTEMS],
     case "${host_os}" in *rtems* ) : ;; *) false;; esac]dnl
 )
 
-
 # Find out if either '--with-rtems-top' was given or
 # host_os is *rtems* (or both).
 #
@@ -1201,6 +1349,16 @@ AC_DEFUN([TILLAC_RTEMS_HOSTOS_IS_RTEMS],
 AC_DEFUN([TILLAC_RTEMS_OS_IS_RTEMS],
 	[AC_REQUIRE([AC_CANONICAL_HOST])
     test "${with_rtems_top+set}" = "set" || TILLAC_RTEMS_HOSTOS_IS_RTEMS]dnl
+)
+
+# Find out if we are NOT at the top of the configuration 
+# process, i.e., --with-rtems-top is not given OR host_os is
+# *rtems*.
+#
+# TILLAC_RTEMS_NOT_CONFIG_TOP
+AC_DEFUN([TILLAC_RTEMS_NOT_CONFIG_TOP],
+	[AC_REQUIRE([AC_CANONICAL_HOST])
+	test ! "${with_rtems_top+set}" = "set" || TILLAC_RTEMS_HOSTOS_IS_RTEMS]dnl
 )
 
 # This macro saves the BSP-specific variables (such as CC, CXX, CPP, ...)
@@ -1237,22 +1395,40 @@ AC_DEFUN([TILLAC_RTEMS_RESET_MAKEVARS],
 	CCAS="$tillac_rtems_ccas_orig"
 	CPP="$tillac_rtems_cpp_orig"
 	LDFLAGS="$tillac_rtems_ldflags_orig"
-	RTEMS_BSP_FAMILY="$tillac_rtems_family_orig"
-	RTEMS_BSP_INSTTOP="$tillac_rtems_insttop_orig"]dnl
+	RTEMS_BSP_FAMILY="$tillac_rtems_bsp_family_orig"
+	RTEMS_BSP_INSTTOP="$tillac_rtems_bsp_insttop_orig"]dnl
 )
 
 # Determine critical, BSP-specific build parameters from the
 # RTEMS makefiles. These parameters are cflags, gccspecs, ...
 #
-# Note: this macro should not be used directly. It is expanded from
-#       TILLAC_RTEMS_SETUP
+# Notes: this macro should not be used directly. It is expanded from
+#        TILLAC_RTEMS_SETUP
+#
+#        4.10 eliminated RTEMS_BSP_FAMILY. This macro sets
+#        RTEMS_BSP_FAMILY=$(RTEMS_BSP) if RTEMS_BSP_FAMILY is empty.
+#        Thus, RTEMS_BSP_FAMILY still works in our framework
+#        (but should be phased out eventually).
 #
 # TILLAC_RTEMS_MAKEVARS(HOST_SYSTEM, BSP)
 AC_DEFUN([TILLAC_RTEMS_MAKEVARS],
 	[
 	AC_MSG_CHECKING([Determining RTEMS Makefile parameters for BSP:])
 dnl DOWNEXT is set in leaf.cfg and we don't include that
-	if _tillac_rtems_result=`make -s -f - rtems_makevars <<EOF_
+	AC_MSG_CHECKING([for 'GNU make'])
+    _tillac_make_command=""
+    for a in "$MAKE" gmake gnumake make; do
+		test -z "$a" && continue
+        if ( sh -c "$a --version" 2>/dev/null | grep GNU >/dev/null ) ; then
+			_tillac_make_command="$a"; break;
+		fi
+	done
+	if test -z "$_tillac_make_command" ; then
+		AC_MSG_ERROR([No GNU make found!])	
+	else
+		AC_MSG_RESULT([found: $_tillac_make_command])
+	fi
+	if _tillac_rtems_result=`$_tillac_make_command -s -f - rtems_makevars <<EOF_
 include $with_rtems_top/$1/$2/Makefile.inc
 include \\\$(RTEMS_CUSTOM)
 include \\\$(CONFIG.CC)
@@ -1263,7 +1439,7 @@ rtems_makevars:
 	@echo tillac_rtems_cpu_asflags=\'\\\$(CPU_ASFLAGS)\'
 	@echo tillac_rtems_ldflags=\'\\\$(AM_LDFLAGS) \\\$(LDFLAGS)\'
 	@echo tillac_rtems_cppflags=
-	@echo RTEMS_BSP_FAMILY=\'\\\$(RTEMS_BSP_FAMILY)\'
+	@echo RTEMS_BSP_FAMILY=\'\\\$(or \\\$(RTEMS_BSP_FAMILY),\\\$(RTEMS_BSP))\'
 	@echo RTEMS_BSP_INSTTOP=\'\\\$(PROJECT_RELEASE)\'
 EOF_
 ` ; then
@@ -1331,6 +1507,10 @@ AC_DEFUN([TILLAC_RTEMS_EXPORT_MAKEVARS],
 				fi
 			done
 		fi
+# evaluate tillac_rtems_cppflags, tillac_rtems_ldflags in case
+# they gave a quoted shell variable on the commandline
+		tillac_rtems_cppflags=`eval echo "$tillac_rtems_cppflags"`
+		tillac_rtems_ldflags=`eval echo "$tillac_rtems_ldflags"`
 #export forged CC & friends so that they are used by sub-configures, too
 		export CC="$CC $tillac_rtems_gccspecs $tillac_rtems_cpu_cflags $tillac_rtems_cppflags"
 		export CXX="$CXX $tillac_rtems_gccspecs $tillac_rtems_cpu_cflags $tillac_rtems_cppflags"
@@ -1375,6 +1555,13 @@ dnl		AC_SUBST(libdir,[${libdir}'$(MULTISUBDIR)'])
 	fi]dnl
 )
 
+# Makefile substitutions required for partial linking to
+# create a cexpsh-loadable object file
+AC_DEFUN([TILLAC_RTEMS_OBJLINK],
+	AC_SUBST([OBJLINK],[['$(CCLD) -nostdlib -Wl,-r -o $[@]']])
+	AC_SUBST([OBJEXEEXT],['.obj'])
+)
+
 # Declare --enable-rtemsbsp --with-rtems-top options
 #
 # TILLAC_RTEMS_OPTIONS
@@ -1414,7 +1601,31 @@ AC_DEFUN([TILLAC_RTEMS_OPTIONS],
 		can also fine-tune the installation using the usual --prefix, 
 		--exec-prefix, --libdir, --includedir etc. options]dnl
 		)
-	)]dnl
+	)
+	AC_ARG_VAR([SUPERPACKAGE_NAME],[Name of a collection of packages; used to define install subdir])
+	if test -z "${SUPERPACKAGE_NAME}" ; then
+		AC_MSG_NOTICE([SUPERPACKAGE_NAME was empty, overriding with PACKAGE_NAME: ${PACKAGE_NAME}])
+		SUPERPACKAGE_NAME="${PACKAGE_NAME}"
+	else
+		AC_MSG_NOTICE([SUPERPACKAGE_NAME was set: ${SUPERPACKAGE_NAME}, leaving alone])
+	fi
+    export SUPERPACKAGE_NAME
+	AC_ARG_WITH(package-subdir,
+		AC_HELP_STRING([--with-package-subdir=<path-fragment>],
+			[defines part of the default exec-prefix:
+             ${prefix}/${package_subdir}/${host_cpu}-${host_os}/${rtems_bsp}
+            This option is overridden by either of --enable-std-rtems-installdirs
+            and --exec-prefix. Defaults to 'target/${SUPERPACKAGE_NAME}']dnl
+		),
+		[AC_SUBST([package_subdir],[${with_package_subdir}])],
+		[AC_SUBST([package_subdir],['target/${SUPERPACKAGE_NAME}'])]
+	)
+	AC_ARG_ENABLE(diag-hostprogs,
+		AC_HELP_STRING([--enable-diag-hostprogs],
+			[Enable building of some (package-specific) diagnostic (host)
+             programs; probably only needed by experts])
+	)
+]dnl
 )
 
 # This macro assembles a list of RTEMS CPUs and if the list
@@ -1449,7 +1660,7 @@ AC_DEFUN([TILLAC_RTEMS_OPTIONS],
 #
 # TILLAC_RTEMS_CONFIG_CPUS_RECURSIVE
 AC_DEFUN([TILLAC_RTEMS_CONFIG_CPUS_RECURSIVE],
-	[if test ! "${with_rtems_top+set}" = "set" || TILLAC_RTEMS_HOSTOS_IS_RTEMS ; then : ; else
+	[if TILLAC_RTEMS_NOT_CONFIG_TOP ; then : ; else
 	# with_rtems_top is set but host_os is not *rtems*, i.e.,
 	# we have to figure out a list of CPUs/arches that are installed.
 	AC_MSG_CHECKING([for all installed CPUs/architectures])
@@ -1534,10 +1745,10 @@ AC_DEFUN([TILLAC_RTEMS_CONFIG_BSPS_RECURSIVE],
 			
 		AC_MSG_NOTICE([Creating BSP subdirectories and sub-configuring])
 		TILLAC_RTEMS_SAVE_MAKEVARS
-		for _tillac_rtems_bsp in $enable_rtemsbsp ; do
-			if test ! -d $_tillac_rtems_bsp ; then
-				AC_MSG_CHECKING([Creating $_tillac_rtems_bsp])
-				if mkdir $_tillac_rtems_bsp ; then
+		for rtems_bsp in $enable_rtemsbsp ; do
+			if test ! -d $rtems_bsp ; then
+				AC_MSG_CHECKING([Creating $rtems_bsp])
+				if mkdir $rtems_bsp ; then
 					AC_MSG_RESULT([OK])
 				else
 					AC_MSG_ERROR([Failed])
@@ -1545,11 +1756,13 @@ AC_DEFUN([TILLAC_RTEMS_CONFIG_BSPS_RECURSIVE],
 			fi
 			TILLAC_RTEMS_TRIM_CONFIG_DIR(_tillac_rtems_config_dir)
 			TILLAC_RTEMS_RESET_MAKEVARS
-			TILLAC_RTEMS_MAKEVARS(${host_cpu}-${host_os},$_tillac_rtems_bsp)
-			tillac_rtems_cppflags="$tillac_rtems_cppflags -I$with_rtems_top/${host_cpu}-${host_os}/$_tillac_rtems_bsp/lib/include"
-			TILLAC_RTEMS_EXPORT_MAKEVARS(${host_cpu}-${host_os},$_tillac_rtems_bsp)
-			AC_MSG_NOTICE([Running $_tillac_rtems_config_dir/[$]0 $_tillac_rtems_config_args --enable-rtemsbsp=$_tillac_rtems_bsp in $_tillac_rtems_bsp subdir])
-			eval \( cd $_tillac_rtems_bsp \; $SHELL $_tillac_rtems_config_dir/"[$]0" $_tillac_rtems_config_args --enable-rtemsbsp=$_tillac_rtems_bsp \)
+			TILLAC_RTEMS_MAKEVARS(${host_cpu}-${host_os},$rtems_bsp)
+			tillac_rtems_cppflags="$tillac_rtems_cppflags -I$with_rtems_top/${host_cpu}-${host_os}/$rtems_bsp/lib/include"
+			TILLAC_RTEMS_EXPORT_MAKEVARS(${host_cpu}-${host_os},$rtems_bsp)
+			AC_MSG_NOTICE([Running $_tillac_rtems_config_dir/[$]0 $_tillac_rtems_config_args --enable-rtemsbsp=$rtems_bsp rtems_bsp=$rtems_bsp in $rtems_bsp subdir])
+			# In case user uses ${RTEMS_BSP} on commandline
+			RTEMS_BSP=${rtems_bsp};
+			eval \( cd $rtems_bsp \; $SHELL $_tillac_rtems_config_dir/"[$]0" $_tillac_rtems_config_args --enable-rtemsbsp=$rtems_bsp rtems_bsp=$rtems_bsp \)
 		done
 		TILLAC_RTEMS_RESET_MAKEVARS
 		AC_MSG_NOTICE([Creating toplevel makefile])
@@ -1608,12 +1821,17 @@ dnl		AC_SUBST(rtems_gccspecs,   [$tillac_rtems_gccspecs])
 dnl		AC_SUBST(rtems_cpu_cflags, [$tillac_rtems_cpu_cflags])
 dnl		AC_SUBST(rtems_cpu_asflags,["$tillac_rtems_cpu_asflags -DASM"])
 dnl		AC_SUBST(rtems_cppflags,   [$tillac_rtems_cppflags])
-			AC_SUBST(rtems_bsp,        [$enable_rtemsbsp])
+dnl allow a few synonyms
+			AC_SUBST([rtems_bsp],        [$enable_rtemsbsp])
+			AC_SUBST([RTEMS_BSP],        [$enable_rtemsbsp])
+			AC_SUBST([enable_rtemsbsp],  [$enable_rtemsbsp])
+			TILLAC_RTEMS_BSP_CLASS
 			AC_MSG_NOTICE([Setting DOWNEXT to .ralf])
 			DOWNEXT=.ralf
 			AC_MSG_NOTICE([Setting APPEXEEXT to .exe])
 			APPEXEEXT=.exe
 			TILLAC_RTEMS_VERSTEST
+			TILLAC_RTEMS_OBJLINK
 		fi
 	fi
 	fi
@@ -1629,6 +1847,7 @@ dnl m4_syscmd is executed when aclocal is run
 m4_syscmd([cat - > makefile.top.am <<'EOF_'
 AUTOMAKE_OPTIONS=foreign
 SUBDIRS=@the_subdirs@
+ACLOCAL_AMFLAGS=-I./m4
 # When making a distribution we only want to 
 # recurse into (any) one single BSP subdir.
 DIST_SUBDIRS=@the_distsub@
@@ -1644,19 +1863,67 @@ EOF_
 
 # Check for critical programs we need for building
 AC_DEFUN([TILLAC_RTEMS_CHECK_TOOLS],
-	[AC_PROG_CC
-	 AM_PROG_AS
+	[
+     # Cannot conditionally use AC_PROG_CC, AC_PROG_CXX, AM_PROG_AS
+	 # This is an autoconf 'feature'. Therefore we use an ugly hack
+	 # to pass the gcc tests on a build system that has no native
+	 # compilers.
+	 if TILLAC_RTEMS_NOT_CONFIG_TOP; then : ; else
+	   CC="$SHELL $srcdir/dummycxx"
+	   CXX="$SHELL $srcdir/dummycxx"
+	 fi
+	 AC_PROG_CC
 	 AC_PROG_CXX
-	 AC_SUBST([GCC])
-	 AC_PROG_CPP
-	 AC_CHECK_PROGS([HOSTCC], gcc cc)
-	 RTEMS_CHECK_TOOL([AR],ar)
-	 RTEMS_CHECK_TOOL([LD],ld)
-	 RTEMS_CHECK_TOOL([OBJCOPY],objcopy)
-	 RTEMS_CHECK_TOOL([RANLIB],ranlib)
-	 AC_PROG_INSTALL
-	 AC_CHECK_PROG([INSTALL_IF_CHANGE],[install-if-change],[install-if-change],[${INSTALL}])]dnl
+	 AM_PROG_AS
+	 if TILLAC_RTEMS_NOT_CONFIG_TOP; then
+	   AC_SUBST([GCC])
+	   AC_PROG_CPP
+	   AC_CHECK_PROGS([HOSTCC], gcc cc)
+	   RTEMS_CHECK_TOOL([AR],ar)
+	   RTEMS_CHECK_TOOL([LD],ld)
+	   RTEMS_CHECK_TOOL([NM],nm)
+	   RTEMS_CHECK_TOOL([OBJCOPY],objcopy)
+	   RTEMS_CHECK_TOOL([RANLIB],ranlib)
+	   AC_PROG_INSTALL
+	   AC_CHECK_PROG([INSTALL_IF_CHANGE],[install-if-change],[install-if-change],[${INSTALL}])
+	 fi]dnl
 )
+
+dnl m4_syscmd is executed when aclocal is run
+m4_syscmd([cat - > dummycxx <<'EOF_'
+#!/bin/sh
+# dummy 'compiler' to just pass the 'gcc' test
+ofile="a.out"
+while getopts "cgo:" opt ; do
+	echo found opt $opt
+	case $opt in
+		o)
+		ofile="$OPTARG"
+		o_seen=yes
+		shift
+		;;
+		c)
+		c_seen=yes
+		;;
+		g)
+		;;
+		*)
+			exit 1;
+		;;
+	esac
+	shift
+	OPTIND=1
+done
+if [ x"${c_seen}" = "xyes" ] && [ ! x"${o_seen}" = "xyes" ] ; then
+	srcnam=`basename $1 | sed -e 's/[.][^.]*$//g'`
+	ofile="${srcnam}.o"
+fi
+echo '#!/bin/sh'                > $ofile
+echo 'echo "dummy compilation"' >> $ofile
+chmod a+x $ofile
+
+EOF_
+])
 
 # Takes one argument
 #

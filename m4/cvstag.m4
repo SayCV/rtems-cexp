@@ -1,14 +1,14 @@
 #
-# TILLAC_CVSTAG([$Name: CEXP_Release_2_0_beta $], [pattern])
+# TILLAC_CVSTAG([$Name: CEXP_Release_2_2 $], [pattern])
 #
-# Strip $Name: CEXP_Release_2_0_beta $ from first argument extracting
+# Strip $Name: CEXP_Release_2_2 $ from first argument extracting
 # the CVS tag. If the second optional argument is
 # given then it must specify a regexp pattern that
 # is stripped from the resulting tag.
 #
 # This macro is intended to be used as follows:
 #
-# AC_INIT(package, TILLAC_CVSTAG([$Name: CEXP_Release_2_0_beta $]))
+# AC_INIT(package, TILLAC_CVSTAG([$Name: CEXP_Release_2_2 $]))
 #
 # CVS inserts a tag which is extracted by this macro.
 # Thus the CVS tag of 'configure.ac' is propagated to
@@ -17,7 +17,7 @@
 # E.g., a checked-out copy may be tagged 'Release_foo'
 # and using the macro:
 #
-# AC_INIT(package, TILLAC_CVSTAG([$Name: CEXP_Release_2_0_beta $],'Release_'))
+# AC_INIT(package, TILLAC_CVSTAG([$Name: CEXP_Release_2_2 $],'Release_'))
 #
 # results in the Makefile defining
 #

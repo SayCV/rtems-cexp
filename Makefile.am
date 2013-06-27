@@ -2,6 +2,18 @@ AUTOMAKE_OPTIONS=foreign no-installinfo no-installman
 
 ACLOCAL_AMFLAGS=-I./m4
 
+# make sure any third-party makefile
+# inherits these settings which
+# may be embedded in installation paths...
+# (This is some hack)
+export rtems_bsp
+export RTEMS_BSP
+export enable_rtemsbsp
+export package_subdir
+export host_alias
+export host_cpu
+export host_os
+
 HOSTCC  = @HOSTCC@
 SUBDIRS = @THESUBDIRS@
 HOSTCFLAGS=-O2 -g
@@ -16,6 +28,8 @@ TECLALIBS        = -ltecla_r
 TECLAINCS        = -I@srcdir@/@LIBTECLA@
 endif
 
+PTHREADLIBS      = @LIBPTHREAD@
+
 SYMF_SRCS        =
 SYMLIBP          =
 SYMLIBS          =
@@ -27,6 +41,7 @@ else
 if USEELFSYMS
 # ELF symbol file reader only
 SYMF_SRCS       += elfsyms.c
+SYMF_SRCS       += elfdlmap.c
 else
 # no symbol file reader at all,
 # builtin symtab only
@@ -82,8 +97,10 @@ if USELOADER
 SEGS_SRCS        = $(SEGS_CPU_SRC) cexpsegs.c
 endif
 
-SRCS = cexp.c ctyps.c cexpsyms.c vars.c cexplock.h ctyps.h  cexpsyms.h  cexpsymsP.h
+SRCS = cexplock.h ctyps.h  cexpsyms.h  cexpsymsP.h
+SRCS+= cexp.c ctyps.c cexpsyms.c vars.c rshload.c cexplock.c
 SRCS+= cexpmod.h cexpmodP.h cexpmod.c vars.h cexp.tab.c cexp.tab.h
+SRCS+= elfdlmap.h
 SRCS+= cexpsegsP.h cexp_regex.h teclastuff.h rtems-hackdefs.h
 SRCS+= @srcdir@/getopt/mygetopt_r.c @srcdir@/getopt/mygetopt_r.h context.h
 SRCS+= help.c
@@ -93,11 +110,19 @@ EXTRA_SRCS+= cexpsegs.c cexpsegs-powerpc-rtems.c cexpsegs-dflt.c
 EXTRA_SRCS+= $(SYMF_SRCS)
 EXTRA_SRCS+= $(TECLA_SRCS)
 
-EXTRA_DIST = cexp.y binutils-2.18.diff jumptab.c gentab.c config-ml.in
-EXTRA_DIST+= README.ld.snippet Makefile LICENSE Makefile.syms
+EXTRA_DIST = cexp.y jumptab.c gentab.c config-ml.in
+EXTRA_DIST+= binutils-2.18.diff 
+EXTRA_DIST+= binutils-2.23.diff 
+EXTRA_DIST+= README.ld.snippet makefile LICENSE Makefile.syms
 EXTRA_DIST+= wrap.c
-EXTRA_DIST+= cpptest
+EXTRA_DIST+= $(wildcard $(srcdir)/cpptest/*.c)
+EXTRA_DIST+= $(wildcard $(srcdir)/cpptest/*.cc)
+EXTRA_DIST+= $(wildcard $(srcdir)/cpptest/*.cpp)
+EXTRA_DIST+= $(wildcard $(srcdir)/cpptest/*.h)
+EXTRA_DIST+= $(wildcard $(srcdir)/cpptest/Make*)
+EXTRA_DIST+= $(wildcard $(srcdir)/cpptest/st.*)
 EXTRA_DIST+= makefile.top.am makefile.top.in
+EXTRA_DIST+= dummycxx
 
 xsyms_SOURCES    = xsyms.c
 gencore_SOURCES  = gencore.c
@@ -119,7 +144,7 @@ XTRAOBJS+= builddate.$(OBJEXT)
 if DO_CEXPLIB
 
 lib_LIBRARIES=libcexp.a
-include_HEADERS = cexp.h cexpHelp.h ctyps.h cexpsyms.h cexpmod.h cexpmodP.h cexpsegsP.h cexpsymsP.h
+include_HEADERS = cexp.h cexpHelp.h ctyps.h cexpsyms.h
 
 
 libcexp_a_SOURCES=$(SRCS)
@@ -133,13 +158,14 @@ libcexp_a_DEPENDENCIES=$(SYMDEPS) $(XTRAOBJS) builddate.o
 
 if DO_DEMO
 cexp_SOURCES  = cexp_main.c
-# '-static' might not be recognized by other compilers
-cexp_LDFLAGS_static_gcc_yes=-static
-cexp_LDADD    = -lcexp $(SYMLIBS) $(TECLALIBS) -lspencer_regexp $(wildcard cexp-builtin-symtab.$(OBJEXT))
-cexp_DEPENDENCIES=libcexp.a  $(wildcard cexp-builtin-symtab.$(OBJEXT))
-cexp_LDFLAGS  = -L. -Wl,-u,printf $(cexp_LDFLAGS_static_gcc_@GCC@) $(SYMLIBP) $(TECLALIBP) -Lregexp $(MDBGLDFLAGS)
+cexp_LDADD    = -lcexp $(SYMLIBS) $(TECLALIBS) -lspencer_regexp $(wildcard cexp-builtin-symtab.$(OBJEXT)) $(PTHREADLIBS)
+cexp_DEPENDENCIES=libcexp.a $(wildcard cpptest/mak.defs)  $(wildcard cexp-builtin-symtab.$(OBJEXT))
+cexp_LDFLAGS  = -L. -Wl,-u,printf -Wl,-u,fprintf -Wl,-u,scanf -Wl,-u,fscanf $(CEXP_TEST_UNDEFS) $(SYMLIBP) $(TECLALIBP) -Lregexp $(MDBGLDFLAGS)
+CEXP_TEST_UNDEFS=-Wl,-u,__cxa_finalize
+-include cpptest/mak.defs
 bin_PROGRAMS  = cexp
 bin_PROGRAMS += xsyms
+cexp_LINK     = $(CXX) $(AM_CFLAGS) $(CFLAGS) $(cexp_LDFLAGS) $(LDFLAGS) -o $@
 endif #DO_DEMO
 else #DO_CEXPLIB
 # cross-tools only

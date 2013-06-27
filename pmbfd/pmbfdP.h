@@ -1,4 +1,4 @@
-/* $Id: pmbfdP.h,v 1.6 2008/05/27 20:07:23 till Exp $ */
+/* $Id: pmbfdP.h,v 1.7 2013/01/23 15:51:31 strauman Exp $ */
 
 /* 
  * Authorship
@@ -85,7 +85,9 @@ struct sec {
 	const char   *name;
 	bfd_size_type size;
 	bfd_vma       vma;
-	unsigned      align_power;
+	uint8_t       align_power;
+#define AUX_ELF64 1             /* So that we can discriminate the shdr */
+	uint8_t       aux_flags;    /* internal to pmbfd */
 	flagword      flags;
 	Elf_Shdr      *shdr;
 #define GRP_NULL	0

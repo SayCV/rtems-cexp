@@ -1,4 +1,4 @@
-/* $Id: pmelfP.h,v 1.7 2008/10/07 21:38:39 till Exp $ */
+/* $Id: pmelfP.h,v 1.9 2012/07/12 17:35:22 strauman Exp $ */
 
 /* 
  * Authorship
@@ -69,11 +69,12 @@
 
 struct _Elf_Stream {
 	void    *f;
-	char    *name;
+	 char    *name;
 	size_t  (*read) (void *buf, size_t size, size_t nmemb, void* stream);
 	size_t  (*write)(const void *buf, size_t size, size_t nmemb, void* stream);
-	int     (*seek) (void* stream, long offset, int whence);
-	int     (*close)(void* s);
+	int     (*seek) (void* stream, off_t offset, int whence);
+	off_t   (*tell) (void *stream);
+	int     (*close)(void* s, int noclose);
 	uint16_t machine;
 	uint8_t  needswap;
 	uint8_t  clss;

@@ -1,4 +1,4 @@
-/* $Id: context.h,v 1.13 2008/10/08 05:23:33 strauman Exp $ */
+/* $Id: context.h,v 1.15 2013/01/17 22:30:35 strauman Exp $ */
 #ifndef CEXP_CONTEXT_H
 #define CEXP_CONTEXT_H
 
@@ -84,6 +84,7 @@
 #endif
 #ifdef HAVE_BFD_DISASSEMBLER
 #define boolean bbbboooolean /* se comment in bfdstuff.c why we do that */
+#include "ansidecl.h"
 #include "dis-asm.h"
 #undef  boolean
 #endif
@@ -130,7 +131,7 @@ void				cexpContextSetCurrent(CexpContext);
 
 typedef CexpContext CexpContextOSD;
 
-#define cexpContextInitOnce()		do {} while (0)
+#define cexpContextInitOnce()		(cexpCurrentContext = 0, 0)
 #define cexpContextRegister()		do {} while (0)
 #define cexpContextUnregister()		do {} while(0)
 #define cexpContextGetCurrent(pc)	do { *(pc) = cexpCurrentContext;	} while (0)
@@ -145,9 +146,8 @@ typedef CexpContext CexpContextOSD;
 
 typedef epicsThreadPrivateId	CexpContextOSD;
 
-#define cexpContextInitOnce()		do { if (!cexpCurrentContext)								\
-											cexpCurrentContext = epicsThreadPrivateCreate();	\
-									} while (0)
+#define cexpContextInitOnce()		(! (cexpCurrentContext ||	\
+									   (cexpCurrentContext = epicsThreadPrivateCreate()) )
 
 #define cexpContextRegister()		do {  } while (0)
 #define cexpContextUnregister()		do {  } while (0)
@@ -157,12 +157,27 @@ typedef epicsThreadPrivateId	CexpContextOSD;
 																);						\
 									} while (0))
 
-#define cexpContextSetCurrent(c)	do { 												\
-										extern CexpContextOSD	cexpCurrentContext;		\
-										epicsThreadPrivateSet(cexpCurrentContext,(c));	\
-									} while (0)
+#define cexpContextSetCurrent(c)	epicsThreadPrivateSet(cexpCurrentContext,(c))
 
 #define cexpContextRunOnce(pdone, fn)	epicsThreadOnce(pdone,(void (*)(void*))fn,0)
+
+#elif defined(HAVE_PTHREADS)
+#include <pthread.h>
+typedef pthread_key_t CexpContextOSD;
+
+#define cexpContextInitOnce()		pthread_key_create(&cexpCurrentContext,0)
+
+#define cexpContextRunOnce(pdone, fn)	do { if (!(*(pdone))) {							\
+												(*(pdone))++; fn(0);					\
+											 }											\
+									} while (0)
+
+
+#define cexpContextRegister()		do {  } while (0)
+#define cexpContextUnregister()		do {  } while (0)
+
+#define cexpContextGetCurrent(pc) do { *pc = pthread_getspecific(cexpCurrentContext); } while (0)
+#define cexpContextSetCurrent(c)  pthread_setspecific(cexpCurrentContext, c)
 
 #elif defined(__rtems__)
 
@@ -199,7 +214,7 @@ typedef CexpContext CexpContextOSD;
  * explicitely call cexpInit(), hence we don't bother
  * about race conditions in cexpInit().
  */
-#define cexpContextInitOnce()		do {} while (0)
+#define cexpContextInitOnce()		(cexpCurrentContext = 0, 0)
 #define cexpContextRunOnce(pdone, fn)	do { if (!(*(pdone))) {							\
 												(*(pdone))++; fn(0);					\
 											 }											\

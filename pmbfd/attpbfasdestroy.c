@@ -1,4 +1,4 @@
-/* $Id: attpbfasdestroy.c,v 1.1 2008/05/23 01:34:07 till Exp $ */
+/* $Id: attpbfasdestroy.c,v 1.2 2009/12/02 18:41:52 strauman Exp $ */
 
 /* 
  * Authorship
@@ -56,8 +56,8 @@ pmelf_pub_file_attributes_destroy(Pmelf_attribute_tbl *patbl)
 Pmelf_attribute_list *el;
 
 	if ( patbl ) {
-		free( patbl->vals.p_pub );
-		patbl->vals.p_pub = 0;
+		free( patbl->vals );
+		patbl->vals = 0;
 
 		while ( (el = patbl->lst) ) {
 			patbl->lst  = patbl->lst->next;

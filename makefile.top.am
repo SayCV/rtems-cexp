@@ -1,5 +1,6 @@
 AUTOMAKE_OPTIONS=foreign
 SUBDIRS=@the_subdirs@
+ACLOCAL_AMFLAGS=-I./m4
 # When making a distribution we only want to 
 # recurse into (any) one single BSP subdir.
 DIST_SUBDIRS=@the_distsub@

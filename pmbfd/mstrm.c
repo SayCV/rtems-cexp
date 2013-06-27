@@ -1,4 +1,4 @@
-/* $Id: mstrm.c,v 1.2 2008/05/23 01:34:08 till Exp $ */
+/* $Id: mstrm.c,v 1.4 2012/07/12 17:35:22 strauman Exp $ */
 
 /* 
  * Authorship
@@ -46,11 +46,21 @@
  */ 
 #include "pmelfP.h"
 
+#ifdef HAVE_SYS_MMAN_H
+#include <sys/mman.h>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
+#endif
+
 typedef struct _Elf_Memstream {
 	struct _Elf_Stream s;
 	char               *buf;
 	size_t             len;
-	unsigned long      pos;
+	off_t              pos;
+#ifdef HAVE_SYS_MMAN_H
+	FILE               *f;
+#endif
 } *Elf_Memstream;
 
 static size_t mrd(void *buf, size_t size, size_t nelms, void *p)
@@ -68,7 +78,7 @@ size_t        l = size*nelms;
 	return nelms;
 }
 
-static int mseek(void *p, long offset, int whence)
+static int mseek(void *p, off_t offset, int whence)
 {
 Elf_Memstream s = p;
 	if ( SEEK_SET != whence ) {
@@ -82,6 +92,24 @@ Elf_Memstream s = p;
 	s->pos = offset;
 	return 0;
 }
+
+static off_t mtell(void *p)
+{
+Elf_Memstream s = p;
+	return s->pos;
+}
+
+#ifdef HAVE_SYS_MMAN_H
+static int mapclose(void *p, int noclose)
+{
+int           rval = 0;
+Elf_Memstream s = p;
+	if ( ! noclose && s->f ) {
+		rval = rval || fclose(s->f);
+	}
+	return rval || munmap(s->buf, s->len);
+}
+#endif
 
 Elf_Stream
 pmelf_memstrm(void *buf, size_t len)
@@ -107,6 +135,57 @@ Elf_Memstream s;
 
 	s->s.read = (void*)mrd;
 	s->s.seek = (void*)mseek;
+	s->s.tell = (void*)mtell;
 
 	return &s->s;
+}
+
+Elf_Stream
+pmelf_mapstrm(const char *name, FILE *f)
+{
+Elf_Stream  s    = 0;
+#ifdef HAVE_SYS_MMAN_H
+void        *buf = 0;
+int         fd   = -1;
+struct stat sbf;
+
+	fd = f ? fileno(f) : open(name, O_RDONLY);
+
+	if ( fd < 0 )
+		goto cleanup;
+
+	if ( fstat(fd, &sbf) )
+		goto cleanup;
+
+	buf = mmap(0, sbf.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+
+	if ( 0 == buf )
+		goto cleanup;
+
+	s   = pmelf_memstrm(buf, sbf.st_size);
+
+	if ( 0 == s )
+		goto cleanup;
+
+	/* mapping now owned by memstrm */
+	s->close = mapclose;
+	((Elf_Memstream)s)->f = f;
+	buf      = 0;
+
+	if ( name ) {
+		free(s->name);
+		s->name = strdup(name);
+	}
+
+cleanup:
+	if ( buf ) {
+		munmap(buf, sbf.st_size);
+	}
+	if ( fd >= 0 && !f ) {
+		close(fd);	
+	}
+#else
+	errno = ENOTSUP;
+#endif
+	return s;
 }

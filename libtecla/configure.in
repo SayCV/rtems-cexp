@@ -153,11 +153,19 @@ dnl they were found is appended to the LIBS shell variable.
 dnl termcap/terminfo is not reentrant [thanks to Eric Norum for
 dnl pointing this out].
 
+AC_ARG_ENABLE([ansiterm],[whether to build w/o curses/termcap just assuming an ANSI terminal],[])
+
 case $host_os in
 	*[[rR]][[tT]][[eE]][[mM]][[sS]]*)
 AC_CHECK_HEADER(sys/termios.h, AC_DEFINE(HAVE_SYS_TERMIOS_H))
+	if test "$enable_ansiterm"xxx = xxx ; then
+		enable_ansiterm=yes
+	fi
 	;;
-	*)
+esac
+
+AC_MSG_NOTICE(["ansiterm is $enable_ansiterm"])
+if test ! "$enable_ansiterm"xxx = yesxxx ; then
 AC_CHECK_LIB(curses, tigetstr, [
   AC_DEFINE(USE_TERMINFO)
   LIBS="$LIBS -lcurses"
@@ -169,8 +177,6 @@ AC_CHECK_LIB(curses, tigetstr, [
   LIBS="$LIBS -lcurses"
   AC_CHECK_HEADER(termcap.h, AC_DEFINE(HAVE_TERMCAP_H))
 ])])])
-	;;
-esac
 
 dnl Search for the curses.h and term.h header files, first in the
 dnl standard system-include directories, and then if not found there,
@@ -181,25 +187,15 @@ dnl including curses.h causes complaints, so when checking for term.h
 dnl we tell AC_CHECK_HEADERS() to include curses.h in the test file
 dnl that it attempts to compile.
 
-case $host_os in
-*[[rR]][[tT]][[eE]][[mM]][[sS]]*)
-;;
-*)
 AC_CHECK_HEADER(term.h, AC_DEFINE(HAVE_TERM_H), [
    AC_CHECK_HEADER(ncurses/term.h, AC_DEFINE(HAVE_NCURSES_TERM_H))
 ])
-;;
-esac
 
-case $host_os in
-*[[rR]][[tT]][[eE]][[mM]][[sS]]*)
-  ;;
-  *)
 AC_CHECK_HEADER(curses.h, AC_DEFINE(HAVE_CURSES_H), [
   AC_CHECK_HEADER(ncurses/curses.h, AC_DEFINE(HAVE_NCURSES_CURSES_H))
 ])
-;;
-esac
+
+fi
 
 dnl The following variable lists the targets that will be created if
 dnl the user runs make without any arguments. Initially we assume

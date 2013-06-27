@@ -87,7 +87,7 @@ cexpInit(CexpSigHandlerInstallProc sigHandlerInstaller);
 
 /* Managing modules (object code and symbols) */
 typedef struct CexpModuleRec_	*CexpModule;
-typedef struct CexpSymRec_	*CexpSym;
+typedef struct CexpSymRec_		*CexpSym;
 
 /* you may use this to check if the system module
  * (i.e. system symbol table) has been loaded
@@ -103,14 +103,14 @@ extern  CexpModule	cexpSystemModule;
  */
 
 CexpModule
-cexpModuleLoad(char *file_name, char *module_name);
+cexpModuleLoad(const char *file_name, const char *module_name);
 
 /* unload a module */
 int
 cexpModuleUnload(CexpModule moduleHandle);
 
 /* return a module's name (string owned by module code) */
-char *
+const char *
 cexpModuleName(CexpModule mod);
 
 #define CEXP_FILE_QUIET ((FILE*) -1 )
@@ -121,7 +121,7 @@ cexpModuleName(CexpModule mod);
  * RETURNS: First module ID found, NULL on no match.
  */
 CexpModule
-cexpModuleFindByName(char *pattern, FILE *f);
+cexpModuleFindByName(const char *pattern, FILE *f);
 
 /* Dump info about a module to 'f' (stdout if NULL)
  * If NULL is passed for the module ID, info about
@@ -149,7 +149,7 @@ cexpModuleInfo(CexpModule mod, int level, FILE *feil);
  * RETURNS: mod->next or NULL.
  */
 CexpModule
-cexpModuleDumpGdbSectionInfo(CexpModule mod, char *prefix, FILE *feil);
+cexpModuleDumpGdbSectionInfo(CexpModule mod, const char *prefix, FILE *feil);
 
 /* search for a name in all module's symbol tables
  *
@@ -188,22 +188,22 @@ cexpSymValue(CexpSym sym);
 typedef struct CexpParserCtxRec_	*CexpParserCtx;
 
 /* create and initialize a parser context
+ *
+ * Parser output and error messages are written to 'outf'
+ * and 'errf', respectively. Either argument may be NULL
+ * to suppress printing of messages.
  * 
- * NOTE: Essentially because bison does not
- *       pass the parser argument/context
- *       to the error messenger (yyerror()),
- *       it is not possible to pass that routine
- *       a file descriptor.
- *       Hence, all error printing is done to stderr,
- *       Before calling the parser, you may
- *       try to redirect stderr...
- *       All normal output (i.e. the evaluated expression)
- *       is sent to 'f'. 'f' may be passed NULL in
- *       which case all normal output is discarded.
+ * Note that this doesn't affect the normal stdio streams.
+ * Any functions called by the parser that write to stdio
+ * still use those streams.
+ * 
+ * The 'redir_cb()' is invoked (if non-NULLO whenever stdio
+ * are changed as a result of redirection.
+ * 
  */
 
 CexpParserCtx
-cexpCreateParserCtx(FILE *f);
+cexpCreateParserCtx(FILE *outf, FILE *errf, void (*redir_cb)(CexpParserCtx ctx, void *uarg), void *uarg);
 
 /* reset a parser context; this routine
  * must be called before calling the parser
@@ -228,6 +228,10 @@ cexpResetParserCtx(CexpParserCtx ctx, const char *linebuf);
  *       the parser context - they are currently
  *       managed globally.
  *
+ *       The connected 'out' and 'err' streams
+ *       passed to cexpCreateParserContext() are NOT
+ *       closed.
+ *
  */
 void
 cexpFreeParserCtx(CexpParserCtx ctx);
@@ -241,7 +245,7 @@ cexpFreeParserCtx(CexpParserCtx ctx);
  *      / * Note: the system module/symbol table must be
  *        *       loaded prior to calling this.
  *        * /
- *      CexpParserCtx ctx=cexpCreateParserCtx();
+ *      CexpParserCtx ctx=cexpCreateParserCtx(stdout, stderr, 0, 0);
  *		char        *line;
  *
  *           while ((line=readline("prompt>"))) {
@@ -258,19 +262,8 @@ cexpFreeParserCtx(CexpParserCtx ctx);
  *        * /
  */
 
-#ifndef _INSIDE_CEXP_Y
-/* pass a CexpParserCtx pointer, this is the public interface
- * NOTE: this requires the BISON '%pure_parser' extension.
- */
 int
 cexpparse(CexpParserCtx ctx);
-#else
-/* private interface for bison generated code to which
- * the argument is opaque.
- */
-int
-cexpparse(void*);
-#endif
 
 /* Retrieve value last successful evaluation;
  *
@@ -301,7 +294,7 @@ cexpParserCtxGetStatus(CexpParserCtx ctx);
  * Info about the symbol will be printed on stdout
  */
 int
-lkup(char *pattern);
+lkup(const char *pattern);
 
 /* search for an address in the system symbol table and
  * print a range of symbols close to the address of
@@ -389,23 +382,29 @@ extern CexpSigHandlerInstallProc cexpSigHandlerInstaller;
  *         ("::", leading or trailing ":") is also equivalent to '.'.
  *         However, if the path is not empty and does not explicitely
  *         mention the cwd it is NOT searched.
- * 'pfname': (IN/OUT) points to the file name string (IN). The
- *         name of the opened file is returned (OUT). This is changed
- *         to *pfname = tmpfname if the file was copied from TFTPfs
- *         to IMFS ('/tmp' subdir) [RTEMS ONLY, see below].
- * 'fullname': (OUT) buffer of at least MAXPATHLEN chars where the expanded
- *         filename is stored. May be NULL in which case a buffer is
- *         managed locally.
+ * 'fname': (IN) points to the file name string (IN). 
+ * 'fullname': (OUT) buffer pointer.
+ *         This may be:
+ *           -  NULL if the user is not interested in the
+ *              expanded name.
+ *           -  the address of a NULL pointer. The routine 
+ *              allocates a buffer and stores its address in
+ *              *fullname. The user 'takes ownership' and
+ *              should eventually free().
+ *           -  the address of a buffer pointer. The buffer must
+ *              be big enough to hold at least MAXPATHLEN chars.
+ *         The expanded filename is written to the buffer.
  * 'tmpfname': (IN/OUT) [used on RTEMS ONLY]. If non-null, this must
  *         hold an initialized buffer to be used and modified by
  *         mkstemp(). If non-null, the routine tries to determine
  *         if the file is located on RTEMS' TFTPFS and copies it to
- *         a temporary file. *pfname is set to the temp file name
- *         and fullname holds the expanded name of the original file.
+ *         a temporary file. 'tmpfname' is copied into 'fullname' if
+ *         the temporary file was created successfully.
+ *         
  * RETURNS: open stream (for reading).
  */
 FILE *
-cexpSearchFile(char *path, char **pfname, char *fullname, char *tmpfname);
+cexpSearchFile(const char *path, const char *fname, char **pfullname, char *tmpfname);
 
 
 /* Set the prompt string (a local copy is made)

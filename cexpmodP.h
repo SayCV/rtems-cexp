@@ -1,4 +1,4 @@
-/* $Id: cexpmodP.h,v 1.14 2009/03/09 18:31:12 till Exp $ */
+/* $Id: cexpmodP.h,v 1.16 2013/01/16 18:41:24 strauman Exp $ */
 #ifndef CEXP_MODULE_PRIVATE_H
 #define CEXP_MODULE_PRIVATE_H
 
@@ -139,7 +139,7 @@ typedef struct CexpModuleRec_ {
  *      BITMAP_SET(this_module->needs,some_module->id);
  */
 int
-cexpLoadFile(char *filename, CexpModule new_module);
+cexpLoadFile(const char *filename, CexpModule new_module);
 
 /* Release all data structures associated with *pmod
  *
@@ -148,5 +148,34 @@ cexpLoadFile(char *filename, CexpModule new_module);
  */
 void
 cexpModuleFree(CexpModule *pmod);
+
+/* search for an address in all modules giving its aindex 
+ * to the *pmod's aindex table
+ *
+ * RETURNS: aindex or -1 if the address is not within the
+ *          boundaries of any module.
+ */
+int
+cexpSymLkAddrIdx(void *addr, int margin, FILE *f, CexpModule *pmod);
+
+/* Symbol and associated module */
+typedef struct CexpSymAIdxRec_ {
+	int          idx;
+	CexpModule   mod;
+} CexpSymAIdxRec, *CexpSymAIdx;
+
+/* Search for an address in all modules; returns the 2*margin+1
+ * symbols closest to 'addr' into the 'symmods' array (storage
+ * allocated by user, 2*margin+1 entries). 
+ * symmods[margin] contains the symbol closest to 'addr', the
+ * elements > or < margin contain the closest symbols upwards
+ * and downwards, respectively.
+ * NOTE: it is possible for individual entries to be 'invalid'
+ * (mod member == NULL) which means that not enough close symbols
+ * were found. 
+ */
+void
+cexpSymLkAddrRange(void *addr, CexpSymAIdxRec symmods[], int margin);
+
 
 #endif

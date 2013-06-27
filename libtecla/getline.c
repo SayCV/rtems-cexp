@@ -56,10 +56,9 @@
 /*
  * UNIX headers.
  */
-#ifndef __rtems__
 #include <sys/ioctl.h>
-/* Don't want to pull in <sys/ioctl.h> which lives in libcpu/bsp area... */
-#else
+
+#ifdef __rtems__
 #undef HAVE_SELECT
 #endif
 
@@ -2551,12 +2550,12 @@ static int gl_override_signal_handlers(GetLine *gl)
       sigaddset(&act.sa_mask, sig->signo);
     };
   };
+#endif
 /*
  * Record the fact that the application's signal handlers have now
  * been overriden.
  */
   gl->signals_overriden = 1;
-#endif
 /*
  * Just in case a SIGWINCH signal was sent to the process while our
  * SIGWINCH signal handler wasn't in place, check to see if the terminal
@@ -2591,12 +2590,12 @@ static int gl_restore_signal_handlers(GetLine *gl)
       return 1;
     };
   };
+#endif
 /*
  * Record the fact that the application's signal handlers have now
  * been restored.
  */
   gl->signals_overriden = 0;
-#endif
   return 0;
 }
 

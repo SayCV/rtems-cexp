@@ -1,4 +1,4 @@
-/* $Id: mygetopt_r.c,v 1.4 2008/04/17 21:10:08 strauman Exp $ */
+/* $Id: mygetopt_r.c,v 1.5 2013/01/10 00:38:13 strauman Exp $ */
 
 /* A reentrant getopt implementation */
 
@@ -56,7 +56,7 @@
 
 
 int
-mygetopt_r(int argc, char **argv, char *optstr, MyGetOptCtxt ctx)
+mygetopt_r(int argc, char **argv, const char *optstr, MyGetOptCtxt ctx)
 {
 int				rval;
 char			*optfound;

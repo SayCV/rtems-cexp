@@ -1,4 +1,4 @@
-/* $Id: attpbfasprint.c,v 1.2 2008/10/07 21:38:38 till Exp $ */
+/* $Id: attpbfasprint.c,v 1.3 2009/12/02 18:41:52 strauman Exp $ */
 
 /* 
  * Authorship
@@ -70,7 +70,7 @@ Pmelf_attribute_list *e;
 	idx = -1;
 	for ( i=0; i <= patbl->pv->max_tag; i++ ) {
 		if ( (idx = patbl->map[i]) ) {
-			pmelf_print_attribute(patbl, f, i, &patbl->vals.p_pub[idx]);
+			pmelf_print_attribute(patbl, f, i, &patbl->vals[idx].pub);
 		}
 	}
 	if ( idx < 0 ) {
@@ -81,7 +81,7 @@ Pmelf_attribute_list *e;
 		fprintf(f,"<EMPTY>\n");
 	} else {
 		for ( e=patbl->lst; e; e=e->next ) {
-			pmelf_print_attribute(patbl, f, e->att.pub.tag, &e->att.pub.val);
+			pmelf_print_attribute(patbl, f, e->att.tag, &e->att.val.pub);
 		}
 	}
 }

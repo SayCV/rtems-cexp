@@ -1,4 +1,4 @@
-/* $Id: cexpsegs-powerpc-rtems.c,v 1.9 2009/03/12 17:36:30 strauman Exp $ */
+/* $Id: cexpsegs-powerpc-rtems.c,v 1.10 2013/01/17 22:26:57 strauman Exp $ */
 
 /* memory segments for powerpc/RTEMS */
 
@@ -104,6 +104,7 @@
  */ 
 
 #include <rtems.h>
+#include <rtems/error.h>
 #include <stdlib.h>
 
 #ifdef HAVE_CONFIG_H
@@ -263,8 +264,7 @@ CexpSegment a;
 
 #ifdef CEXP_TEXT_REGION_SIZE
 rtems_status_code sc;
-rtems_id          id;
-unsigned long     start, start_unaligned;
+unsigned long     start, start_unaligned = LIMIT_32M;
 unsigned long     sz;
 #endif
 

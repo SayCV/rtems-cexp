@@ -1,4 +1,4 @@
-/* $Id: cexpmod.c,v 1.40 2008/10/08 22:06:34 till Exp $ */
+/* $Id: cexpmod.c,v 1.48 2013/01/17 22:25:41 strauman Exp $ */
 
 /* Implementation of cexp modules */
 
@@ -54,11 +54,13 @@
 #include "config.h"
 #endif
 
+#include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
 #include <cexp_regex.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 /* FIXME: would like to use uintptr_t but some RTEMS versions
  *        make this long long (64-bit) even on a 32-bit machine :-(
  *        which makes the output look bad. Hopefully this can
@@ -81,6 +83,9 @@ typedef          long myintptr_t;
 
 #ifdef USE_PMBFD
 #include <pmelf.h>
+#ifdef USE_LOADER
+#include <pmbfd.h>
+#endif
 #endif
 
 #ifdef HAVE_BFD_DISASSEMBLER
@@ -101,7 +106,7 @@ CexpModule cexpSystemModule=0;
 char *
 cexpMagicString = CEXPMOD_MAGIC;
 
-static CexpRWLockRec	_rwlock={0};
+static CexpRWLockRec	_rwlock;
 #define __RLOCK()	cexpReadLock(&_rwlock)
 #define __RUNLOCK()	cexpReadUnlock(&_rwlock)
 #define __WLOCK()	cexpWriteLock(&_rwlock)
@@ -110,13 +115,11 @@ static CexpRWLockRec	_rwlock={0};
 void
 cexpModuleInitOnce(void)
 {
-#ifndef NO_THREAD_PROTECTION
-	if (!_rwlock.mutex) {
-		cexpRWLockInit(&_rwlock);
-	}
-#endif
+	memset(&_rwlock, 0, sizeof(_rwlock));
+	cexpRWLockInit(&_rwlock);
 }
 
+#ifdef USE_LOADER
 /* Search predecessor of a module in the list.
  * This should be called with the lock held!
  */
@@ -132,6 +135,7 @@ register CexpModule pred;
 			/* nothing else to do */;
 	return pred;
 }
+#endif
 
 /* verify the validity of a handle;
  * should be called with the lock held
@@ -171,15 +175,102 @@ int			index;
 
 static int addrInModule(void *addr, CexpModule m)
 {
+CexpSymTbl  t;
+#ifdef USE_LOADER
 CexpSegment s;
-	for ( s = m->segs; s->name; s++ ) {
-		if ( ! s->chunk )
-			continue;
+	if ( (s = m->segs) ) {
+		for ( ; s->name; s++ ) {
+			if ( ! s->chunk ) {
+				continue;
+			}
 
-		if ( (char*)addr >= (char*)s->chunk && (char*)addr < (char*)s->chunk + s->size )
-			return 1;
+			if ( (char*)addr >= (char*)s->chunk && (char*)addr < (char*)s->chunk + s->size )
+				return 1;
+		}
+	}
+#endif
+	if ( m == cexpSystemModule ) {
+		t = m->symtbl;
+		/* assume system module is a single chunk (not allocated though) */
+		return addr >= (void*)t->aindex[0]->value.ptv && addr <= (void*)t->aindex[t->nentries-1]->value.ptv;
 	}
 	return 0;
+}
+
+static void *
+gaddr(CexpSymAIdx ar)
+{
+	return ar->mod->symtbl->aindex[ar->idx]->value.ptv;
+}
+
+void
+cexpSymLkAddrRange(void *addr, CexpSymAIdx ar, int margin)
+{
+const int      n = 2*margin + 1;
+int            i,cli,j;
+void           *tstaddr, *limaddr;
+CexpSymAIdxRec thisone;
+CexpModule     m;
+CexpSymTbl     t;
+
+	for ( i=0; i<n; i++ )
+		ar[i].mod = 0;	
+
+	__RLOCK();
+
+	for ( m = cexpSystemModule; m; m=m->next ) {
+
+		if ( !addrInModule(addr, m) )
+			continue;
+
+		t = m->symtbl;
+		thisone.mod = m;
+		cli = cexpSymTblLkAddrIdx(addr, 0, 0, t);
+
+		/* Look for all addresses in this module which are lower
+		 * than the one we are looking for and which are closer
+		 * than what we already have.
+		 */
+		for ( i = cli; i>=0; i-- ) {
+			thisone.idx = i;
+			tstaddr = gaddr( &thisone );
+			limaddr = ar[0].mod ? gaddr(&ar[0]) : (void*)0;
+
+			/* if there is no entry [0] then there is space; we set 'limaddr' == 0 above
+			 * so the tstaddr < limaddr test can never succeed
+			 */
+			if ( tstaddr > addr || tstaddr < limaddr )
+				break; 
+
+			for ( j=1; j<=margin && ( ! ar[j].mod || tstaddr > gaddr(&ar[j]) ); j++ ) {
+				ar[j-1] = ar[j];
+			}
+			ar[j-1].idx = i;
+			ar[j-1].mod = m;
+		}
+
+
+		for ( i = cli+1; i < t->nentries; i++ ) {
+			thisone.idx = i;
+			tstaddr = gaddr( &thisone );
+			limaddr = ar[n-1].mod ? gaddr(&ar[n-1]) : (void*)UINTPTR_MAX;
+
+			/* if there is no entry [n-1] then there is space;
+			 * we set 'limaddr' == UINTPTR_MAX above
+			 * so the tstaddr > limaddr test can never succeed
+			 */
+			if ( tstaddr <= addr || tstaddr > limaddr )
+				break;
+
+			for ( j=n-2; j>margin && (! ar[j].mod || tstaddr < gaddr(&ar[j]) ); j-- ) {
+				ar[j+1] = ar[j];
+			}
+			ar[j+1].idx = i;
+			ar[j+1].mod = m;
+		}
+	}
+
+	__RUNLOCK();
 }
 
 /* search for (the closest) address in all modules giving its
@@ -190,27 +281,31 @@ CexpSegment s;
 int
 cexpSymLkAddrIdx(void *addr, int margin, FILE *f, CexpModule *pmod)
 {
-CexpModule	m;
-int			rval=-1;
-CexpSymTbl	t;
+CexpSymAIdxRec ar[margin<0 ? 1 : 2*margin+1];
+int            i;
+CexpModule	   mfnd = 0, m;
 
-	__RLOCK();
+	if ( margin < 0 || !f )
+		margin = 0;
 
-	for (m=cexpSystemModule; m; m=m->next) {
-		t=m->symtbl;
-		if ( !addrInModule(addr, m) )
-			continue;
-		if (f)
-			fprintf(f,"=====  In module '%s' =====:\n",m->name);
-		if ((rval=cexpSymTblLkAddrIdx(addr,margin,f,t)) >= 0)
-			break;
+	cexpSymLkAddrRange(addr, ar, margin);
+
+	if ( f ) {
+		for ( i=0; i<2*margin+1; i++ ) {
+			if ( ! (m = ar[i].mod) )
+				continue;
+			if ( mfnd != m ) {
+				fprintf(f,"=====  In module '%s' =====:\n",m->name);
+				mfnd = m;
+			}
+			cexpSymPrintInfo( m->symtbl->aindex[ar[i].idx], f );
+		}
 	}
-	if (pmod)
-		*pmod=m;
 
-	__RUNLOCK();
+	if ( pmod ) 
+		*pmod = ar[margin].mod;
 
-	return rval;
+	return ar[margin].mod ? ar[margin].idx : -1;
 }
 
 /* search for an address in all modules */
@@ -246,7 +341,7 @@ CexpModule m;
 }
 
 /* return a module's name (string owned by module code) */
-char *
+const char *
 cexpModuleName(CexpModule mod)
 {
 	return mod->name;
@@ -400,8 +495,8 @@ cexpModuleInfo(CexpModule mod, int level, FILE *f)
 static void
 modPrintGdbSects(CexpModule m, FILE *f, void *closure)
 {
-char	*prefix = (char*)closure;
-CexpSym	*psects;
+const char	*prefix = (const char*)closure;
+CexpSym	    *psects;
 
 	if ( m == cexpSystemModule )
 		return;
@@ -420,13 +515,13 @@ CexpSym	*psects;
 }
 
 CexpModule
-cexpModuleDumpGdbSectionInfo(CexpModule mod, char *prefix, FILE *feil)
+cexpModuleDumpGdbSectionInfo(CexpModule mod, const char *prefix, FILE *feil)
 {
 	return cexpModIterate(mod, feil, modPrintGdbSects, (void*)prefix);
 }
 
 CexpModule
-cexpModuleFindByName(char *needle, FILE *f)
+cexpModuleFindByName(const char *needle, FILE *f)
 {
 cexp_regex	*rc=0;
 CexpModule	m,found=0;
@@ -523,24 +618,31 @@ CexpSegment s;
 
 	__WUNLOCK();
 
-	for ( s = mod->segs; s->name; s++ ) {
+	if ( mod->segs ) {
+		for ( s = mod->segs; s->name; s++ ) {
 
-		if ( ! s->chunk )
-			continue;
+			if ( ! s->chunk )
+				continue;
 
 #ifdef HAVE_SYS_MMAN_H
-		{
-			unsigned long nsiz, pgbeg, pgmsk;
-			pgmsk  = getpagesize()-1;
-			pgbeg  = (unsigned long)s->chunk;
-			pgbeg &= ~pgmsk;
-			nsiz   = s->size + (unsigned long)s->chunk - pgbeg; 
-			nsiz   = (nsiz + pgmsk) & ~pgmsk;
-			if ( mprotect((void*)pgbeg, nsiz, PROT_READ | PROT_WRITE) )
-				perror("ERROR -- mprotect(PROT_READ|PROT_WRITE)");
-		}
+			/* HACK: NEVER remove 'x' attribute. Since our memory segments are not
+			 *       page-aligned it could be that we revoke 'x' for parts of memory
+			 *       that are located outside of our segments which may still be
+			 *       live, executable modules.
+			 */
+			if ( 0 ) {
+				unsigned long nsiz, pgbeg, pgmsk;
+				pgmsk  = getpagesize()-1;
+				pgbeg  = (unsigned long)s->chunk;
+				pgbeg &= ~pgmsk;
+				nsiz   = s->size + (unsigned long)s->chunk - pgbeg; 
+				nsiz   = (nsiz + pgmsk) & ~pgmsk;
+				if ( mprotect((void*)pgbeg, nsiz, PROT_READ | PROT_WRITE) )
+					perror("ERROR -- mprotect(PROT_READ|PROT_WRITE)");
+			}
 #endif
-		memset(s->chunk, 0, s->size);
+			memset(s->chunk, 0, s->size);
+		}
 	}
 
 	/* could flush the caches here */
@@ -630,9 +732,16 @@ CexpSym s;
 		return -1;
 	}
 
+	if ( cexpIndexSymTbl(nmod->symtbl) )
+		return -1;
+
 	nmod->text_vma = 0xdeadbeef;
 
 	nmod->section_syms = malloc( (nsect_syms + 1) * sizeof(CexpSym) );
+
+	if ( ! nmod->section_syms )
+		return -1;
+
 	for ( i = 0, s = cexpSystemSymbols, nsect_syms = 0; i<nsyms; i++, s++ ) {
 		if ( s->flags & CEXP_SYMFLG_SECT ) {
 			nmod->section_syms[nsect_syms++] = s;
@@ -657,10 +766,10 @@ CexpSym s;
 	/* finding our BFD architecture turns out to be non-trivial! */
 	{
 	bfd *abfd = 0; /* keep compiler happy */
-	const bfd_arch_info_type *ai = 0;
 	char	      *tn = 0;
 	const char **tgts = 0;
 #ifndef USE_PMBFD
+	const bfd_arch_info_type *ai = 0;
 		/* must open a BFD for the default target */
 		if ( !(tn=malloc(L_tmpnam)) || !tmpnam(tn) || !(abfd=bfd_openw(tn,"default")) ) {
 			fprintf(stderr,"cexpLoadBuiltinSymtab(): unable to open a dummy BFD for determining disassembler arch\n");
@@ -688,8 +797,8 @@ CexpSym s;
 #endif
 		cexpDisassemblerInstall(abfd);
 
-cleanup:
 #ifndef USE_PMBFD
+cleanup:
 		if ( !ai )
 			fprintf(stderr,"Unable to determine target CPU architecture -- skipping disassembler installation\n");
 #endif
@@ -707,7 +816,7 @@ cleanup:
 
 
 CexpModule
-cexpModuleLoad(char *filename, char *modulename)
+cexpModuleLoad(const char *filename, const char *modulename)
 {
 CexpModule m,tail,nmod,rval=0;
 char       *slash = filename ? strrchr(filename,'/') : 0;
@@ -776,19 +885,19 @@ char       *slash = filename ? strrchr(filename,'/') : 0;
 	if ( nmod->segs ) {
 	CexpSegment s;
 
-	for ( s=nmod->segs; s->name; s++ ) {
-		/* make executable */
-		if ( s->chunk ) {
-			unsigned long nsiz, pgbeg, pgmsk;
-			pgmsk  = getpagesize()-1;
-			pgbeg  = (unsigned long)s->chunk;
-			pgbeg &= ~pgmsk;
-			nsiz   = s->size + (unsigned long)s->chunk - pgbeg; 
-			nsiz   = (nsiz + pgmsk) & ~pgmsk;
-			if ( mprotect((void*)pgbeg, nsiz, PROT_READ | PROT_WRITE | PROT_EXEC) )
-				perror("ERROR -- mprotect(PROT_READ|PROT_WRITE|PROT_EXEC)");
+		for ( s=nmod->segs; s->name; s++ ) {
+			/* make executable */
+			if ( s->chunk ) {
+				unsigned long nsiz, pgbeg, pgmsk;
+				pgmsk  = getpagesize()-1;
+				pgbeg  = (unsigned long)s->chunk;
+				pgbeg &= ~pgmsk;
+				nsiz   = s->size + (unsigned long)s->chunk - pgbeg; 
+				nsiz   = (nsiz + pgmsk) & ~pgmsk;
+				if ( mprotect((void*)pgbeg, nsiz, PROT_READ | PROT_WRITE | PROT_EXEC) )
+					perror("ERROR -- mprotect(PROT_READ|PROT_WRITE|PROT_EXEC)");
+			}
 		}
-	}
 	}
 #endif
 

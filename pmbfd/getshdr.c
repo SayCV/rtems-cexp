@@ -1,4 +1,4 @@
-/* $Id: getshdr.c,v 1.5 2008/04/19 00:40:33 strauman Exp $ */
+/* $Id: getshdr.c,v 1.6 2012/07/12 00:23:55 strauman Exp $ */
 
 /* 
  * Authorship
@@ -78,7 +78,8 @@ pmelf_getshdr64(Elf_Stream s, Elf64_Shdr *pshdr)
 		return -1;
 	}
 #if PARANOIA_ON > 1
-	if ( (x = pshdr->sh_type) > SHT_MAXSUP ) {
+	x = pshdr->sh_type;
+	if ( ! SHT_ISSUP(x) ) {
 		PMELF_PRINTF( pmelf_err, PMELF_PRE"pmelf_getshdr - paranoia: unsupported type  0x%08lu\n", x);
 		return -1;
 	}
@@ -121,7 +122,8 @@ pmelf_getshdr32(Elf_Stream s, Elf32_Shdr *pshdr)
 		return -1;
 	}
 #if PARANOIA_ON > 1
-	if ( (x = pshdr->sh_type) > SHT_MAXSUP ) {
+	x = pshdr->sh_type;
+	if ( ! SHT_ISSUP(x) ) {
 		PMELF_PRINTF( pmelf_err, PMELF_PRE"pmelf_getshdr - paranoia: unsupported type  0x%08lu\n", x);
 		return -1;
 	}

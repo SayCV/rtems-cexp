@@ -153,6 +153,11 @@
  */
 static  cexp_regex	*ctorDtorRegexp=0;
 
+/*
+ * Allow to override the object-attribute matcher
+ */
+int _cexpForceIgnoreObjAttrMismatches = 0;
+
 #ifdef HAVE_BFD_DISASSEMBLER
 /* as a side effect, this code gives access to a disassembler which
  * itself is implemented by libopcodes
@@ -344,7 +349,7 @@ isCtorDtor(asymbol *asym, int quiet, int *pprio)
 		register const char *tail = ctorDtorRegexp->endp[0];
 		/* read the priority */
 		if (pprio) {
-			if (isdigit(*tail))
+			if (isdigit((int)*tail))
 				*pprio = atoi(tail);
 			else
 				*pprio = INIT_PRIO_NONE;
@@ -450,7 +455,7 @@ CexpType	t=TVoid;
 /* call this after relocation to assign the internal
  * symbol representation their values
  */
-void
+int
 cexpSymTabSetValues(CexpSymTbl cst)
 {
 CexpSym	cesp;
@@ -459,11 +464,8 @@ CexpSym	cesp;
 		cesp->value.ptv=(CexpVal)bfd_asymbol_value(sp);
 	}
 
-	/* resort the address index */
-	qsort((void*)cst->aindex,
-			cst->nentries,
-			sizeof(*cst->aindex),
-			_cexp_addrcomp);
+	/* build the address index */
+	return cexpIndexSymTbl( cst );
 }
 
 /* All 's_xxx()' routines defined here are for use with
@@ -595,8 +597,14 @@ static void
 s_nsects(bfd *abfd, asection *sect, PTR arg)
 {
 LinkData	ld=(LinkData)arg;
-	if ( SEC_ALLOC & bfd_get_section_flags(ld->abfd, sect) )
-		ld->num_section_names++;
+	if ( SEC_ALLOC & bfd_get_section_flags(ld->abfd, sect) ) {
+		if ( 0 == bfd_section_size(ld->abfd, sect) ) {
+			/* Effectively remove zero-sized sections */
+			bfd_set_section_flags( ld->abfd, sect, bfd_get_section_flags( ld->abfd, sect ) & ~SEC_ALLOC);
+		} else {
+			ld->num_section_names++;
+		}
+	}
 }
 
 /* find basic sections and the number of sections which are
@@ -793,24 +801,9 @@ unsigned long vma;
 			}
 #endif
 			symsect=bfd_get_section(*ppsym);
-			if (   bfd_is_und_section(symsect) ||					
-				   /* reloc references an undefined sym */
-/* FIXME: -- should we allow *any* absolute symbol here (e.g., created with --defsym=XXX) */
-				( !(SEC_ALLOC & bfd_get_section_flags(abfd,symsect)) &&
-				   /* reloc references a dropped linkonce */
-				  !( bfd_is_abs_section(symsect) && (ld->eh_section == sect) ) )
-				   /* it does reference a dropped linkonce but in the eh_frame
-					* this will be ignored by the frame unwinder (I hope - I did
-					* some digging through libgcc (gcc-3.2) sources and it seemed
-					* so although it's a very complicated issue)
-					* NOTE: the converse case - i.e. if an eh_frame section in the
-					*       object we are loading right now	references a 'linkonce'
-					*       section we have deleted - is probably OK. We relocate
-					*       the EH info to a PC range already in memory - this should
-					*       be safe. I also found some comments in bfd/elflink and 
-					*       libgcc which give me some confidence.
-					*/
-			    ) {
+
+			if ( bfd_is_und_section(symsect) ) {
+				/* reloc references an undefined symbol which we have to look-up */
 				CexpModule	mod;
 				asymbol		*sp;
 				CexpSym		ts;
@@ -859,21 +852,55 @@ unsigned long vma;
 						 */
 						sp=asymFromCexpSym(abfd,ts,ld->depend,mod);
 					}
-					*ppsym = sp;
+					*ppsym  = sp;
+					symsect = bfd_get_section(*ppsym);
 				} else {
 					fprintf(stderr,"Unresolved symbol: %s\n",bfd_asymbol_name(sp));
 					ld->errors++;
 		continue;
 				}
 			}
+			/* Ignore relocs that reference dropped linkonce sections */
+			/* FIXME: We really should have a dedicated flag (and not overload SEC_ALLOC)
+			 *        to indicate that we deal with a dropped linkonce. Unfortunately,
+			 *        in BFD, there is no flag available to the user...
+			 */
+			else if ( !(SEC_ALLOC & bfd_get_section_flags(abfd, symsect) ) && ! bfd_is_abs_section(symsect) && !bfd_is_com_section(symsect) ) {
+				/* FIXME: should we add a paranoia check that the 'addend' is zero? gcc only skips
+				 *        NULL relocs in .eh_frame if the relocation value is zero.
+				 */
+#if ! (DEBUG & DEBUG_RELOC)
+				/* reloc referencing a symbol in a dropped linkonce should not happen unless from .eh_frame;
+				 * warn about it:
+				 */
+				if ( sect != ld->eh_section )
+#endif
+				{
+					fprintf(stderr, "WARNING:\n");
+					fprintf(stderr, "Ignoring/skipping reloc   [0x%08lx = %s@%s]\n",
+					                (unsigned long)bfd_asymbol_value(*ppsym),
+					                bfd_asymbol_name(*ppsym),
+					                bfd_get_section_name(abfd, symsect));
+					fprintf(stderr, "  [IN DROPPED LINKONCE] => 0x%08lx@%s (sym_ptr_ptr = 0x%08lx)\n",
+					                (unsigned long)reloc_get_address(abfd, r),
+					                bfd_get_section_name(abfd, sect),
+					                (unsigned long)ppsym
+					       );
+				}
+			continue;
+			}
+
 #if DEBUG & DEBUG_RELOC
-			printf("relocating (%s=",
-					bfd_asymbol_name(*ppsym)
-					);
-			printf("0x%08lx)->0x%08lx [sym_ptr_ptr = 0x%08lx]\n",
-			(unsigned long)bfd_asymbol_value(*ppsym),
-			(unsigned long)reloc_get_address(abfd, r),
-			(unsigned long)ppsym);
+			printf("relocating [0x%08lx = %s@%s]\n",
+			        (unsigned long)bfd_asymbol_value(*ppsym),
+					bfd_asymbol_name(*ppsym),
+			        bfd_get_section_name(abfd, symsect)
+			      );
+			printf("         => 0x%08lx@%s (sym_ptr_ptr = 0x%08lx)\n",
+			       (unsigned long)reloc_get_address(abfd, r),
+			       bfd_get_section_name(abfd, sect),
+			       (unsigned long)ppsym
+			      );
 #endif
 #ifndef _PMBFD_
 			err=bfd_perform_relocation(
@@ -1164,7 +1191,7 @@ int			i,errs=0;
 				 *		 redundant occurrencies have been de-SEC_ALLOCed
 				 *		 from this module.
 				 */
-				if (SEC_ALLOC & bfd_get_section_flags(abfd, sect)) {
+				if ( (SEC_ALLOC & bfd_get_section_flags(abfd, sect)) ) {
 						sp->flags|=BSF_KEEP;
 				}
 			}
@@ -1446,7 +1473,7 @@ char	*start, *end;
 
 /* the caller of this routine holds the module lock */ 
 int
-cexpLoadFile(char *filename, CexpModule mod)
+cexpLoadFile(const char *filename, CexpModule mod)
 {
 LinkDataRec						ldr;
 int								rval=1,i;
@@ -1460,6 +1487,7 @@ unsigned long                   eh_vma;
 char							tmpfname[30]={
 		'/','t','m','p','/','m','o','d','X','X','X','X','X','X',
 		0};
+int                             have_tmpf = 0;
 #else
 #define tmpfname 0
 #endif
@@ -1469,7 +1497,9 @@ char							*thename = 0;
 
 #ifdef USE_PMBFD
 Pmelf_attribute_set             *obj_atts = 0;
+#ifdef PMELF_ATTRIBUTE_VENDOR
 CexpModule                      m;
+#endif
 #endif
 
 	/* clear out the private data area; the cleanup code
@@ -1505,15 +1535,16 @@ CexpModule                      m;
 	if (!ctorDtorRegexp)
 		ctorDtorRegexp=cexp_regcomp(CTOR_DTOR_PATTERN);
 
-	thename = malloc(MAXPATHLEN);
-
-	f = cexpSearchFile(getenv("PATH"), &filename, thename, tmpfname);
+	f = cexpSearchFile(getenv("PATH"), filename, &thename, tmpfname);
 
 	if ( !f ) {
 		perror("opening object file (check PATH)");
 		goto cleanup;
 	}
 
+#ifdef __rtems__
+	have_tmpf = (0 == strcmp(thename, tmpfname));
+#endif
 
 	if ( ! (ldr.abfd=bfd_openstreamr(filename,0,f)) ) {
 		bfd_perror("Opening BFD on object file stream");
@@ -1571,7 +1602,11 @@ CexpModule                      m;
 			fprintf(stderr,
 			        "Mismatch of object file attributes (ABI) with module '%s' found\n",
 					m->name);
-			goto cleanup;
+			if ( _cexpForceIgnoreObjAttrMismatches ) {
+				fprintf(stderr,"WARNING: forced to ignore mismatch\n");
+			} else {
+				goto cleanup;
+			}
 		}
 	}
 #endif
@@ -1652,7 +1687,8 @@ if ( chunk ) memset(ldr.segs[i].chunk, 0xee,ldr.segs[i].size); /*TSILL*/
 			ldr.text_vma=bfd_get_section_vma(ldr.abfd,ldr.text);
 	}
 
-	cexpSymTabSetValues(ldr.cst);
+	if ( cexpSymTabSetValues(ldr.cst) )
+		goto cleanup;
 
 	/* record the section names */
 	for ( psym = ldr.module->section_syms; *psym; psym++ ) {
@@ -1730,7 +1766,7 @@ if ( chunk ) memset(ldr.segs[i].chunk, 0xee,ldr.segs[i].size); /*TSILL*/
 			if ( ldr.eh_frame_e_sym ) {
 				/* eh_frame was in its own section; hence we have to write a terminating 0
 				 */
-				*(long*)bfd_asymbol_value(ldr.eh_frame_e_sym)=0;
+				*(void **)bfd_asymbol_value(ldr.eh_frame_e_sym)=0;
 			}
 			assert(my__register_frame);
 			ehFrame=(void*)bfd_asymbol_value(ldr.eh_frame_b_sym);
@@ -1740,7 +1776,7 @@ if ( chunk ) memset(ldr.segs[i].chunk, 0xee,ldr.segs[i].size); /*TSILL*/
 		if (ldr.eh_section) {
 			ehFrame = (void*)eh_vma;
 			/* write terminating 0 to eh_frame */
-			*(long*)( ((unsigned long)ehFrame) + bfd_section_size(ldr.abfd, ldr.eh_section) ) = 0;
+			*(void**)( (ehFrame) + bfd_section_size(ldr.abfd, ldr.eh_section) ) = 0;
 			assert(my__register_frame);
 			my__register_frame(ehFrame);
 		}
@@ -1820,7 +1856,7 @@ cleanup:
 		fclose(f);
 	}
 #ifdef __rtems__
-	if (filename==tmpfname)
+	if ( have_tmpf )
 		unlink(tmpfname);
 #endif
 

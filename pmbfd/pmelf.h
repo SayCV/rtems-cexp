@@ -1,4 +1,4 @@
-/* $Id: pmelf.h,v 1.17 2009/03/12 04:42:14 strauman Exp $ */
+/* $Id: pmelf.h,v 1.22 2013/01/23 15:46:17 strauman Exp $ */
 
 /* 
  * Authorship
@@ -83,6 +83,7 @@ typedef  int64_t Elf64_Sxword;
 #define ET_HIPROC	0xffff	/* processor specific */
 
 /* Machine type (supported by us so far)          */
+#define EM_SPARC			 2
 #define EM_386				 3
 #define EM_68K				 4
 #define EM_PPC				20
@@ -120,6 +121,12 @@ typedef  int64_t Elf64_Sxword;
 #define EV_CURRENT			 1
 
 #define EI_NIDENT  16
+
+/* if eh_phnum == PN_XNUM then the number of program headers doesn't fit.
+ * it is then stored in the sh_info field of section 0.
+ */
+#define PN_XNUM     0xffff
+
 typedef struct {
 	uint8_t		e_ident[EI_NIDENT];
 	Elf32_Half	e_type;
@@ -190,14 +197,15 @@ typedef union {
 #define SHT_PREINIT_ARRAY	16
 #define SHT_GROUP			17
 #define SHT_SYMTAB_SHNDX	18
-#define SHT_MAXSUP			18
 #define SHT_GNU_ATTRIBUTES  0x6ffffff5
+#define SHT_GNU_HASH        0x6ffffff6
 #define SHT_GNU_VERSION     0x6fffffff
 #define SHT_GNU_VERSION_R   0x6ffffffe
 #define SHT_LOPROC			0x70000000
 #define SHT_HIPROC			0x7fffffff
 #define SHT_LOUSER			0x80000000
 #define SHT_HIUSER			0xffffffff
+#define SHT_ISSUP(i) ( ((i) <= SHT_SYMTAB_SHNDX) || ((i)>=SHT_GNU_ATTRIBUTES && (i)<=SHT_GNU_VERSION) )
 
 #define SHF_WRITE			0x00000001
 #define SHF_ALLOC			0x00000002
@@ -210,6 +218,8 @@ typedef union {
 #define SHF_GROUP			0x00000200
 #define SHF_MSKSUP			 (~0x3f7)
 #define SHF_MASKPROC		0xf0000000
+
+#define SHF_PPC_VLE         0x10000000
 
 #define GRP_COMDAT			 1
 
@@ -308,6 +318,72 @@ typedef union {
 /**************************************************/
 /*  RELOCATION RECORDS                            */
 /**************************************************/
+
+/*
+ * Sysv relocation types for SPARC.
+ */
+
+#define R_SPARC_NONE              0
+#define R_SPARC_8                 1
+#define R_SPARC_16                2
+#define R_SPARC_32                3
+#define R_SPARC_DISP8             4
+#define R_SPARC_DISP16            5
+#define R_SPARC_DISP32            6
+#define R_SPARC_WDISP30           7
+#define R_SPARC_WDISP22           8
+#define R_SPARC_HI22              9
+#define R_SPARC_22               10
+#define R_SPARC_12               11
+#define R_SPARC_LO10             12
+#define R_SPARC_GOT10            13	/* unimpl */
+#define R_SPARC_GOT13            14	/* unimpl */
+#define R_SPARC_GOT22            15	/* unimpl */
+#define R_SPARC_PC10             16
+#define R_SPARC_PC22             17
+#define R_SPARC_WPLT30           18	/* unimpl */
+#define R_SPARC_COPY             19	/* unimpl */
+#define R_SPARC_GLOB_DAT         20	/* unimpl */
+#define R_SPARC_JMP_SLOT         21	/* unimpl */
+#define R_SPARC_RELATIVE         22	/* unimpl */
+#define R_SPARC_UA32             23
+#define R_SPARC_PLT32            24	/* unimpl */
+#define R_SPARC_HIPLT22          25	/* unimpl */
+#define R_SPARC_LOPLT10          26	/* unimpl */
+#define R_SPARC_PCPLT32          27	/* unimpl */
+#define R_SPARC_PCPLT22          28	/* unimpl */
+#define R_SPARC_PCPLT10          29	/* unimpl */
+#define R_SPARC_10               30
+#define R_SPARC_11               31
+/**/
+#define R_SPARC_HH22             34
+#define R_SPARC_HM10             35
+#define R_SPARC_LM22             36
+#define R_SPARC_PC_HH22          37
+#define R_SPARC_PC_HM10          38
+#define R_SPARC_PC_LM22          39
+#define R_SPARC_WDISP16          40
+#define R_SPARC_WDISP19          41
+/**/
+#define R_SPARC_7                43
+#define R_SPARC_5                44
+#define R_SPARC_6                45
+/**/
+#define R_SPARC_HIX22            48
+#define R_SPARC_LOX10            49
+#define R_SPARC_H44              50
+#define R_SPARC_M44              51
+#define R_SPARC_L44              52
+#define R_SPARC_REGISTER         53	/* unimpl */
+/**/
+#define R_SPARC_UA16             55
+/**/
+#define R_SPARC_GOTDATA_HIX22    80	/* unimpl */
+#define R_SPARC_GOTDATA_LOX10    81	/* unimpl */
+#define R_SPARC_GOTDATA_OP_HIX22 82	/* unimpl */
+#define R_SPARC_GOTDATA_OP_LOX10 83	/* unimpl */
+#define R_SPARC_GOTDATA_OP       84	/* unimpl */
+
 
 /*
  * SysvR4 relocation types for i386. Statically linked objects
@@ -466,6 +542,123 @@ typedef union {
 	Elf64_Rela  ra64;
 } Elf_Reloc;
 
+/**************************************************/
+/*  PROGRAM HEADER                                */
+/**************************************************/
+
+#define PT_NULL			0
+#define PT_LOAD			1
+#define PT_DYNAMIC		2
+#define PT_INTERP		3
+#define PT_NOTE			4
+#define PT_SHLIB		5
+#define PT_PHDR			6
+#define PT_LOOS			0x60000000
+#define PT_GNU_EH_FRAME	0x6474e550
+#define PT_GNU_STACK	0x6474e551
+#define PT_GNU_RELRO	0x6474e552
+#define PT_HIOS			0x6fffffff
+#define PT_LOPROC		0x70000000
+#define PT_HIPROC		0x7fffffff
+#define PT_ISSUP(t) ((t) <= PT_PHDR || ((t)>=PT_GNU_EH_FRAME && (t)<=PT_GNU_RELRO))
+
+#define PF_X			0x1  /* Execute */
+#define PF_W			0x2  /* Write   */
+#define PF_R			0x4  /* Read    */
+#define PF_MASCOS		0x0ff00000
+#define PF_MASCPROC		0xf0000000
+#define PF_MSKSUP       (~(PF_X|PF_W|PF_R))
+
+typedef struct {
+	Elf32_Word		p_type;
+	Elf32_Off		p_offset;
+	Elf32_Addr		p_vaddr;
+	Elf32_Addr		p_paddr;
+	Elf32_Word		p_filesz;
+	Elf32_Word		p_memsz;
+	Elf32_Word		p_flags;
+	Elf32_Word		p_align;
+} Elf32_Phdr;
+
+typedef struct {
+	Elf64_Word		p_type;
+	Elf64_Word		p_flags;
+	Elf64_Off		p_offset;
+	Elf64_Addr		p_vaddr;
+	Elf64_Addr		p_paddr;
+	Elf64_Xword		p_filesz;
+	Elf64_Xword		p_memsz;
+	Elf64_Xword		p_align;
+} Elf64_Phdr;
+
+typedef union {
+	Elf32_Phdr p32;
+	Elf64_Phdr p64;
+} Elf_Phdr;
+
+/**************************************************/
+/*  DYNAMIC SECTION                               */
+/**************************************************/
+
+typedef struct {
+	Elf32_Sword		d_tag;
+	union {
+		Elf32_Word		d_val;
+		Elf32_Addr		d_ptr;
+	} 				d_un;
+} Elf32_Dyn;
+
+typedef struct {
+	Elf64_Sxword	d_tag;
+	union {
+		Elf64_Xword		d_val;
+		Elf64_Addr		d_ptr;
+	} 				d_un;
+} Elf64_Dyn;
+
+typedef union {
+	Elf32_Dyn d32;
+	Elf64_Dyn d64;
+} Elf_Dyn;
+
+#define DT_NULL				0	/* End of array marker									*/
+#define DT_NEEDED			1	/* string table offset of name of needed library		*/
+#define DT_PLTRELSZ			2	/* # relocation entries associated with PLT				*/
+#define DT_PLTGOT			3	/* address associated with PLT or GOT (proc specific)	*/
+#define DT_HASH				4	/* address of symbol hash table							*/
+#define DT_STRTAB			5	/* address of string table								*/
+#define DT_SYMTAB			6	/* address of symbol table								*/
+#define DT_RELA				7	/* address of RELA relocation table						*/
+#define DT_RELASZ			8	/* total size (in bytes) of RELA relocation table		*/
+#define DT_RELAENT			9	/* size (in bytes) of one RELA entry					*/
+#define DT_STRSZ			10	/* size (in bytes) of the string table					*/
+#define DT_SYMENT			11	/* size (in bytes) of a symbol table entry				*/
+#define DT_INIT				12	/* address of initialization function					*/
+#define DT_FINI				13	/* address of termination function						*/
+#define DT_SONAME			14	/* strtab index of shared object name					*/
+#define DT_RPATH			15	/* strtab index of library search path (deprecated)		*/
+#define DT_SYMBOLIC			16	/* start symbol search with this shared object			*/
+#define DT_REL				17	/* address of REL relocation table						*/
+#define DT_RELSZ			18	/* size (in bytes) of REL table							*/
+#define DT_RELENT			19	/* size (in bytes) of a REL entry						*/
+#define DT_PLTREL			20	/* type of PLT relocation (rel/rela)					*/
+#define DT_DEBUG			21	/* debugging; unspecified								*/
+#define DT_TEXTREL			22	/* reloc might modify .text								*/
+#define DT_JMPREL			23	/* address of PLT relocation table						*/
+#define DT_BIND_NOW			24	/* process relocations when loading program				*/
+#define DT_INIT_ARRAY		25	/* address of array of init functions					*/
+#define DT_FINI_ARRAY		26	/* address of array of termination functions			*/
+#define DT_INIT_ARRAYSZ		27	/* size (in bytes) of INIT_ARRAY						*/
+#define DT_FINI_ARRAYSZ		28	/* size (in bytes) of FINI_ARRAY						*/
+#define DT_RUNPATH			29	/* library search path									*/
+#define DT_FLAGS			30	/* flags for shared object being loaded					*/
+#define DT_ENCODING			31	/* start of encoded range								*/
+#define DT_PREINIT_ARRAY	32	/* address of array of preinit functions				*/
+#define DT_PREINIT_ARRAYSZ	33	/* size (in bytes) of PREINIT_ARRAY						*/
+#define DT_LOOS		0x6000000d
+#define DT_HIOS		0x6ffff000
+#define DT_LOPROC	0x70000000
+#define DT_HIPROC	0x7fffffff
 
 /**************************************************/
 /* ANYTHING BELOW HERE IS DEFINED BY THIS LIBRARY */
@@ -562,6 +755,15 @@ pmelf_newstrm(const char *name, FILE *f);
 Elf_Stream
 pmelf_memstrm(void *buf, size_t len);
 
+
+/* Create a new stream 'mmap()'ing the underlying
+ * file 'filename'. Alternatively, an open FILE
+ * may be passed (see pmelf_newstrm).
+ *
+ */
+Elf_Stream
+pmelf_mapstrm(const char *name, FILE *f);
+
 /* Cleanup and delete a stream. Optionally,
  * (pass nonzero 'noclose' argument) the
  * underlying FILE is not closed but left alone.
@@ -589,6 +791,12 @@ pmelf_set_errstrm(FILE *f);
  */
 int
 pmelf_seek(Elf_Stream s, Pmelf_Off where);
+
+/* Obtain current position in stream
+ * RETURNS: 0 on success, nonzero on error
+ */
+int
+pmelf_tell(Elf_Stream s, Pmelf_Off *ppos);
 
 /* Read an ELF file header into *pehdr (storage
  * provided by caller).
@@ -765,6 +973,9 @@ pmelf_sym_name(Pmelf_Symtab symt, Elf_Sym *sym);
 Pmelf_Symtab
 pmelf_getsymtab(Elf_Stream s, Pmelf_Shtab shtab);
 
+Pmelf_Symtab
+pmelf_getdsymtab(Elf_Stream s, Pmelf_Shtab shtab);
+
 /*
  * Destroy symbol table and release memory
  */
@@ -789,6 +1000,31 @@ pmelf_delsymtab(Pmelf_Symtab symtab);
  */
 Pmelf_Long
 pmelf_find_symhdrs(Elf_Stream s, Pmelf_Shtab shtab, Elf_Shdr **psymsh, Elf_Shdr **pstrsh);
+
+Pmelf_Long
+pmelf_find_dsymhdrs(Elf_Stream s, Pmelf_Shtab shtab, Elf_Shdr **psymsh, Elf_Shdr **pstrsh);
+
+/* Read an ELF program header into *pphdr (storage
+ * provided by caller).
+ *
+ * The header is byte-swapped if necessary into
+ * host byte order.
+ *
+ * NOTE:    The stream must have been correctly 
+ *          positioned prior to calling this routine.
+ *          After returning successfully from this
+ *          routine the stream is positioned after
+ *          the datum that was read.
+ *
+ *          On reading the last PHDR, p_type == PT_NULL.
+ *
+ * RETURNS: 0 on success, nonzero on error.
+ */
+int
+pmelf_getphdr32(Elf_Stream s, Elf32_Phdr *pphdr);
+int
+pmelf_getphdr64(Elf_Stream s, Elf64_Phdr *pphdr);
+
 
 /* Dump contents of file header to FILE in readable form */
 void
@@ -861,6 +1097,22 @@ pmelf_dump_groups(FILE *f, Elf_Stream s, Pmelf_Shtab shtab, Pmelf_Symtab symtab)
  */
 void
 pmelf_dump_rels(FILE *f, Elf_Stream s, Pmelf_Shtab sht, Pmelf_Symtab symt);
+
+/* Dump contents of program header to FILE in readable form
+ * using one of the formats defined above.
+ *
+ */
+void 
+pmelf_dump_phdr32(FILE *f, Elf32_Phdr *pphdr, int format);
+
+void 
+pmelf_dump_phdr64(FILE *f, Elf64_Phdr *pphdr, int format);
+
+/*
+ * Dump all phdrs to FILE
+ */
+int
+pmelf_dump_phdrs(FILE *f, Elf_Stream s, int format);
 
 /*
  * Object file attributes (stored in '.gnu.attributes' sections of type
@@ -1011,8 +1263,79 @@ pmelf_getrel(Elf_Stream s, Elf_Shdr *psect, void *data);
  */
 #define pmelf_namecase(rel)	case rel: return #rel;
 
-static __inline__ 
-const char *pmelf_i386_rel_name(Elf32_Rel *r)
+static __inline__ const char *
+pmelf_sparc_rel_name(Elf32_Rela *r)
+{
+	switch ( ELF32_R_TYPE(r->r_info) ) {
+		pmelf_namecase( R_SPARC_NONE             )
+		pmelf_namecase( R_SPARC_8                )
+		pmelf_namecase( R_SPARC_16               )
+		pmelf_namecase( R_SPARC_32               )
+		pmelf_namecase( R_SPARC_DISP8            )
+		pmelf_namecase( R_SPARC_DISP16           )
+		pmelf_namecase( R_SPARC_DISP32           )
+		pmelf_namecase( R_SPARC_WDISP30          )
+		pmelf_namecase( R_SPARC_WDISP22          )
+		pmelf_namecase( R_SPARC_HI22             )
+		pmelf_namecase( R_SPARC_22               )
+		pmelf_namecase( R_SPARC_12               )
+		pmelf_namecase( R_SPARC_LO10             )
+		pmelf_namecase( R_SPARC_GOT10            )
+		pmelf_namecase( R_SPARC_GOT13            )
+		pmelf_namecase( R_SPARC_GOT22            )
+		pmelf_namecase( R_SPARC_PC10             )
+		pmelf_namecase( R_SPARC_PC22             )
+		pmelf_namecase( R_SPARC_WPLT30           )
+		pmelf_namecase( R_SPARC_COPY             )
+		pmelf_namecase( R_SPARC_GLOB_DAT         )
+		pmelf_namecase( R_SPARC_JMP_SLOT         )
+		pmelf_namecase( R_SPARC_RELATIVE         )
+		pmelf_namecase( R_SPARC_UA32             )
+		pmelf_namecase( R_SPARC_PLT32            )
+		pmelf_namecase( R_SPARC_HIPLT22          )
+		pmelf_namecase( R_SPARC_LOPLT10          )
+		pmelf_namecase( R_SPARC_PCPLT32          )
+		pmelf_namecase( R_SPARC_PCPLT22          )
+		pmelf_namecase( R_SPARC_PCPLT10          )
+		pmelf_namecase( R_SPARC_10               )
+		pmelf_namecase( R_SPARC_11               )
+/**/
+		pmelf_namecase( R_SPARC_HH22             )
+		pmelf_namecase( R_SPARC_HM10             )
+		pmelf_namecase( R_SPARC_LM22             )
+		pmelf_namecase( R_SPARC_PC_HH22          )
+		pmelf_namecase( R_SPARC_PC_HM10          )
+		pmelf_namecase( R_SPARC_PC_LM22          )
+		pmelf_namecase( R_SPARC_WDISP16          )
+		pmelf_namecase( R_SPARC_WDISP19          )
+/**/
+		pmelf_namecase( R_SPARC_7                )
+		pmelf_namecase( R_SPARC_5                )
+		pmelf_namecase( R_SPARC_6                )
+/**/
+		pmelf_namecase( R_SPARC_HIX22            )
+		pmelf_namecase( R_SPARC_LOX10            )
+		pmelf_namecase( R_SPARC_H44              )
+		pmelf_namecase( R_SPARC_M44              )
+		pmelf_namecase( R_SPARC_L44              )
+		pmelf_namecase( R_SPARC_REGISTER         )
+/**/
+		pmelf_namecase( R_SPARC_UA16             )
+/**/
+		pmelf_namecase( R_SPARC_GOTDATA_HIX22    )
+		pmelf_namecase( R_SPARC_GOTDATA_LOX10    )
+		pmelf_namecase( R_SPARC_GOTDATA_OP_HIX22 )
+		pmelf_namecase( R_SPARC_GOTDATA_OP_LOX10 )
+		pmelf_namecase( R_SPARC_GOTDATA_OP       )
+
+		default:
+			break;
+	}
+	return "UNKNOWN";
+}
+
+static __inline__ const char *
+pmelf_i386_rel_name(Elf32_Rel *r)
 {
 	switch ( ELF32_R_TYPE(r->r_info) ) {
 		pmelf_namecase( R_386_NONE     )

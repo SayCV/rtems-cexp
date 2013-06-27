@@ -1,6 +1,6 @@
 #ifndef MY_REENTRANT_GETOPT
 #define MY_REENTRANT_GETOPT
-/* $Id: mygetopt_r.h,v 1.4 2008/04/17 21:10:08 strauman Exp $ */
+/* $Id: mygetopt_r.h,v 1.5 2013/01/10 00:38:13 strauman Exp $ */
 
 /* A reentrant getopt implementation */
 
@@ -69,6 +69,6 @@ typedef struct MyGetOptCtxtRec_ {
 extern "C" 
 #endif
 int
-mygetopt_r(int argc, char **argv, char *optstr, MyGetOptCtxt ctx);
+mygetopt_r(int argc, char **argv, const char *optstr, MyGetOptCtxt ctx);
 
 #endif
